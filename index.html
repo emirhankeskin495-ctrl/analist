@@ -5837,7 +5837,11 @@ $("#clearCurrentAssetPredsBtn")?.addEventListener("click", () => {
   renderPredictionList();
   renderComprehensivePredTable();
   updateSettingsCounts();
-  showToast(`${sym} varlığına ait ${beforeCount} adet tahmin başarıyla temizlendi.`);
+
+  // Temizleme sonrası eski expiresAt timer'ı iptal edilir ve seçili varlık
+  // için yeni 5dk tahmin döngüsü anında yeniden başlatılır.
+  scheduleNextPredictionCycle();
+  showToast(`${sym} varlığına ait ${beforeCount} adet tahmin başarıyla temizlendi. Yeni 5dk tahmin hazırlanıyor.`);
 });
 
 // Tüm Varlıkların Tüm Tahminlerini Temizle
@@ -5854,7 +5858,11 @@ $("#clearAllPredsBtn")?.addEventListener("click", () => {
   renderPredictionList();
   renderComprehensivePredTable();
   updateSettingsCounts();
-  showToast(`Sistemdeki tüm ${beforeCount} adet tahmin geçmişi tamamen temizlendi.`);
+
+  // Tüm tahminler silindiğinde eski döngü timer'ını temizle ve
+  // seçili varlık için yeni 5dk tahmini hemen başlat.
+  scheduleNextPredictionCycle();
+  showToast(`Sistemdeki tüm ${beforeCount} adet tahmin geçmişi tamamen temizlendi. Yeni 5dk tahmin hazırlanıyor.`);
 });
 
 // Forecast Mode Pills Dinleyicileri (Boğa / Ayı / Trend Projeksiyonu)
