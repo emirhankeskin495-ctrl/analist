@@ -1231,6 +1231,8 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
       </div>
     </div>
 
+    <div class="settings-section"><div class="settings-section-title"><span>📊</span> Prediction Engine 2.0</div><div class="settings-section-desc">Gerçekleşen 5dk tahminleri için Profit Factor, Expectancy ve Max Drawdown metrikleri.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:6px;"><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">PROFIT FACTOR</div><strong id="predMetricPF" style="font-size:12px;">0.00</strong></div><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">EXPECTANCY</div><strong id="predMetricExp" style="font-size:12px;">0.00%</strong></div><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">MAX DD</div><strong id="predMetricDD" style="font-size:12px;">0.00%</strong></div></div><button id="runBacktestBtn" type="button" style="margin-top:8px;padding:8px 10px;background:#111b2a;border:1px solid #29405d;border-radius:8px;color:#93c5fd;font-size:10px;font-weight:800;">Geçmiş 5m veride Backtest Çalıştır</button></div>
+
     <!-- GEMINI AI ENTEGRASYON BİLGİSİ -->
     <div class="settings-section">
       <div class="settings-section-title">
@@ -1430,21 +1432,10 @@ const state = {
    Tek dosya mimarisi korunur.
 ============================================================ */
 const IMPROVEMENT_CONFIG = {
-  prediction: {
-    defaultHorizonMs: 5 * 60 * 1000,
-    maxHistory: 250,
-    minAtrRatio: 0.0001,
-    maxAtrRatio: 0.20,
-    targetAtrMultiple: 2.0,
-    stopAtrMultiple: 1.0
-  },
-  chart: {
-    maxDpr: 2
-  },
-  data: {
-    minCandles: 30,
-    staleAfterMs: 90 * 1000
-  }
+  prediction: { defaultHorizonMs: 5*60*1000, maxHistory: 2500, minAtrRatio:0.0001, maxAtrRatio:0.20, targetAtrMultiple:1.55, stopAtrMultiple:0.90, minConfidence:58, minScoreDistance:8, requireVolumeConfirmation:false },
+  chart: { maxDpr:2 },
+  data: { minCandles:30, minBacktestCandles:220, staleAfterMs:90*1000, maxCandleGapMs:7*60*1000, requestRetries:2, retryBaseMs:350 },
+  analytics: { feePct:0, slippagePct:0 }
 };
 
 function isValidCandle(c){
@@ -1489,12 +1480,11 @@ function calculatePnL(entry, exit, direction){
 }
 
 function calculateSignalConfidence(analysis){
-  const score = clamp(Number(analysis?.score) || 50, 0, 100);
-  const distance = Math.abs(score - 50) * 2;
-  const trendBonus = /TREND|YÜKSEL/.test(String(analysis?.trend || "")) ? 6 : 0;
-  const rsi = Number(analysis?.rsi);
-  const rsiPenalty = Number.isFinite(rsi) && (rsi > 80 || rsi < 20) ? 8 : 0;
-  return Math.round(clamp(50 + distance*0.35 + trendBonus - rsiPenalty, 50, 95));
+  const score=clamp(Number(analysis?.score)||50,0,100), distance=Math.abs(score-50);
+  const trendBonus=/TREND|YÜKSELİŞ|DÜŞÜŞ/.test(String(analysis?.trend||""))?8:0;
+  const volumeBonus=Number(analysis?.volume?.ratio)>=1.25?6:0; const rsi=Number(analysis?.rsi);
+  const penalty=Number.isFinite(rsi)&&(rsi>82||rsi<18)?10:0;
+  return Math.round(clamp(50+distance*0.65+trendBonus+volumeBonus-penalty,0,98));
 }
 
 function isStaleData(timestamp){
@@ -1502,8 +1492,16 @@ function isStaleData(timestamp){
 }
 
 function markDataQuality(candles){
-  const valid = validateCandles(candles, 2);
-  return { valid, ok: valid.length >= IMPROVEMENT_CONFIG.data.minCandles, count: valid.length, lastTime: valid.at(-1)?.time || null, stale: isStaleData(valid.at(-1)?.time || 0) };
+  const valid=validateCandles(candles,2); let maxGap=0; for(let i=1;i<valid.length;i++) maxGap=Math.max(maxGap,valid[i].time-valid[i-1].time);
+  return {valid,ok:valid.length>=IMPROVEMENT_CONFIG.data.minCandles&&!isStaleData(valid.at(-1)?.time||0)&&maxGap<=IMPROVEMENT_CONFIG.data.maxCandleGapMs,count:valid.length,lastTime:valid.at(-1)?.time||null,stale:isStaleData(valid.at(-1)?.time||0),maxGapMs:maxGap,gappy:maxGap>IMPROVEMENT_CONFIG.data.maxCandleGapMs};
+}
+
+function normalizePredictionRecord(p){
+  if(!p||!p.assetId||!p.createdAt||!Number(p.entryPrice)) return null; const out={...p}; out.timeframe="5m";
+  out.status=["ACTIVE","SUCCESS","FAILED","NEUTRAL"].includes(out.status)?out.status:"NEUTRAL"; out.createdAt=Number(out.createdAt);
+  out.expiresAt=Number(out.expiresAt)||out.createdAt+IMPROVEMENT_CONFIG.prediction.defaultHorizonMs; out.entryPrice=Number(out.entryPrice);
+  out.targetPrice=Number(out.targetPrice)||out.entryPrice; out.stopPrice=Number(out.stopPrice)||out.entryPrice; out.lastCheckedPrice=Number(out.lastCheckedPrice??out.entryPrice);
+  out.netPnl=Number(out.netPnl)||0; out.mfe=Number(out.mfe)||0; out.mae=Number(out.mae)||0; return out;
 }
 
 function loadStoredData(){
@@ -1515,9 +1513,7 @@ function loadStoredData(){
       if(s.favorites) state.favorites = new Set(s.favorites);
     }
     const preds = JSON.parse(localStorage.getItem("marketpulse.predictions"));
-    if(Array.isArray(preds)){
-      state.predictions = preds;
-    }
+    if(Array.isArray(preds)) state.predictions = preds.map(normalizePredictionRecord).filter(Boolean).slice(0,IMPROVEMENT_CONFIG.prediction.maxHistory);
     const dw = JSON.parse(localStorage.getItem("marketpulse.drawings"));
     if(dw && typeof dw === "object"){
       state.drawings = dw;
@@ -1600,10 +1596,50 @@ function updateTfLabel(){
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 
-function timeoutFetch(url, options={}, timeout=CONFIG.requestTimeout){
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(timer));
+const pendingRequests=new Map();
+async function timeoutFetch(url,options={},timeout=CONFIG.requestTimeout){
+  const dedupe=(!options.method||options.method==="GET")?url:null;
+  // Aynı URL'e eş zamanlı ikinci bir çağrı gelirse, devam eden isteğin Response'unu
+  // KOPYALAYARAK (clone) döndürüyoruz. Aksi halde iki çağıran da aynı Response
+  // nesnesinde .json() çağırmaya çalışır ve ikincisi "body stream already read"
+  // hatasıyla patlar - bu da grafiklerin rastgele yüklenmeme sebebiydi.
+  if(dedupe && pendingRequests.has(dedupe)){
+    const r = await pendingRequests.get(dedupe);
+    return r.clone();
+  }
+  const task=(async()=>{
+    let last;
+    for(let attempt=0;attempt<=IMPROVEMENT_CONFIG.data.requestRetries;attempt++){
+      const c=new AbortController(), t=setTimeout(()=>c.abort(),timeout);
+      try{
+        const r=await fetch(url,{...options,signal:c.signal});
+        // 5xx (sunucu hatası) ve 429 (rate limit) geçici sayılır ve yeniden denenir.
+        // Diğer 4xx durumları (404 vb.) kalıcı kabul edilip hemen döndürülür.
+        if(!r.ok && (r.status>=500 || r.status===429)){
+          const err = new Error(`HTTP ${r.status}`);
+          err.status = r.status;
+          const retryAfterHeader = r.headers?.get?.("Retry-After");
+          const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader)*1000 : null;
+          err.retryAfterMs = Number.isFinite(retryAfterMs) ? retryAfterMs : null;
+          throw err;
+        }
+        return r;
+      } catch(e){
+        last=e;
+        console.warn(`Fetch denemesi başarısız (${attempt+1}/${IMPROVEMENT_CONFIG.data.requestRetries+1}):`, url, e?.message || e);
+        if(attempt<IMPROVEMENT_CONFIG.data.requestRetries){
+          const backoff = e?.retryAfterMs ?? (IMPROVEMENT_CONFIG.data.retryBaseMs*(2**attempt));
+          await new Promise(r=>setTimeout(r,backoff));
+        }
+      } finally{clearTimeout(t);}
+    }
+    throw last||new Error("İstek başarısız");
+  })();
+  if(dedupe) pendingRequests.set(dedupe,task);
+  try{
+    const r = await task;
+    return dedupe ? r.clone() : r;
+  } finally{if(dedupe) pendingRequests.delete(dedupe);}
 }
 
 function safeNumber(v){
@@ -1613,6 +1649,16 @@ function safeNumber(v){
 }
 
 function normalizeTimestamp(v){
+  // BiQuote OHLC barları "openTime" alanını ISO 8601 string olarak döndürür
+  // (ör. "2026-02-24T13:00:00Z"), Binance ise sayısal epoch (ms) döndürür.
+  // Number("2026-02-24T13:00:00Z") NaN verdiği için önce ISO string olarak
+  // parse etmeyi deniyoruz; bu satır eksikti ve tüm BiQuote mumlarının
+  // sessizce elenmesine (time:null) - yani grafiklerin hiç çizilmemesine - sebep oluyordu.
+  if(typeof v === "string" && isNaN(Number(v))){
+    const parsed = Date.parse(v);
+    if(Number.isFinite(parsed)) return parsed;
+    return null;
+  }
   const n = Number(v);
   if(!Number.isFinite(n)) return null;
   return n < 1e12 ? n * 1000 : n;
@@ -1694,14 +1740,16 @@ const Normalizer = {
         })).filter(b => b.time && b.close);
       }
       if(source === "biquote"){
-        const sourceBars = Array.isArray(raw?.bars) ? raw.bars : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.candles) ? raw.candles : [];
+        // BiQuote yanıtı { symbol, interval, bars: [...] } yapısında obje olarak döndüğü için doğrudan raw.bars alınır:
+        const sourceBars = Array.isArray(raw?.bars) ? raw.bars : Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.candles) ? raw.candles : [];
+        
         bars = sourceBars.map(row => ({
-          time: normalizeTimestamp(row.openTime ?? row.time ?? row.timestamp),
-          open: safeNumber(row.open),
-          high: safeNumber(row.high),
-          low: safeNumber(row.low),
-          close: safeNumber(row.close),
-          volume: safeNumber(row.volume ?? row.vol) ?? 0
+          time: normalizeTimestamp(row.openTime ?? row.time ?? row.timestamp ?? row.t ?? row.date),
+          open: safeNumber(row.open ?? row.o),
+          high: safeNumber(row.high ?? row.h),
+          low: safeNumber(row.low ?? row.l),
+          close: safeNumber(row.close ?? row.c),
+          volume: safeNumber(row.volume ?? row.vol ?? row.v) ?? 0
         })).filter(b => b.time && b.close);
       }
       bars.sort((a,b) => a.time - b.time);
@@ -2147,6 +2195,18 @@ function atr(candles, period=14){
   return atrVal;
 }
 
+function calculateVolumeContext(candles){
+  if(!Array.isArray(candles)||candles.length<21) return {ratio:null,trend:"NÖTR",confirmed:false};
+  const vols=candles.map(c=>Number(c.volume)).filter(Number.isFinite); if(vols.length<21) return {ratio:null,trend:"NÖTR",confirmed:false};
+  const avg=vols.slice(-21,-1).reduce((a,b)=>a+b,0)/20, ratio=avg>0?vols.at(-1)/avg:null;
+  return {ratio,trend:ratio==null?"NÖTR":ratio>=1.35?"YÜKSEK":ratio<=0.70?"DÜŞÜK":"NORMAL",confirmed:ratio!=null&&ratio>=1.05};
+}
+function detectMarketRegime(candles, a={}){
+  if(!candles||candles.length<60) return "BELİRSİZ"; const price=candles.at(-1).close||1, av=Number(a.atr)||atr(candles,14)||0;
+  const recent=candles.slice(-40), range=(Math.max(...recent.map(c=>c.high))-Math.min(...recent.map(c=>c.low)))/price, atrPct=av/price;
+  const e20=Number(a.ema20)||ema(candles.map(c=>c.close),20).at(-1), e50=Number(a.ema50)||ema(candles.map(c=>c.close),50).at(-1), slope=e20&&e50?Math.abs((e20-e50)/price):0;
+  if(atrPct>=0.025||range>=0.12) return "YÜKSEK VOLATİLİTE"; if(slope>=0.012) return e20>e50?"TREND-YUKARI":"TREND-AŞAĞI"; if(atrPct<=0.004&&range<=0.035) return "DAR ARALIK"; return "RANGE";
+}
 function calculateAnalysis(candles){
   if(!candles || candles.length < 10) return null;
   const closes = candles.map(x => x.close);
@@ -2185,6 +2245,8 @@ function calculateAnalysis(candles){
     if(momentum > 1.5) score += 8;
     else if(momentum < -1.5) score -= 8;
   }
+  const volume = calculateVolumeContext(candles);
+  if(volume.ratio != null){ if(volume.ratio>=1.35) score+=5; else if(volume.ratio<=0.60) score-=3; }
   score = clamp(score, 0, 100);
 
   let signal = "NÖTR", trend = "NÖTR";
@@ -2196,175 +2258,39 @@ function calculateAnalysis(candles){
     else if(ema20 < ema50 && ema50 < ema200) trend = "DÜŞÜŞ";
   }
 
-  return {
-    current, ema20, ema50, ema200, rsi: rsiVal,
-    atr: atrVal, macd: macdVal, momentum,
-    support: sup, resistance: res, score, signal, trend
-  };
+  const base={current,ema20,ema50,ema200,rsi:rsiVal,atr:atrVal,macd:macdVal,momentum,support:sup,resistance:res,score,signal,trend};
+  return {...base, volume, marketRegime:detectMarketRegime(candles,base)};
 }
 
 /* ============================================================
    PREDICTION TRACKER ENGINE (MADDE 3)
 ============================================================ */
-function checkAndGeneratePrediction(asset, tf, candles, analysis){
-  // Prediction tracker yalnızca 5 dakikalık tahmin üretir.
-  // Grafik timeframe'i 15m/1h/4h/1d olsa bile tahmin motoru 5m verisiyle çalışır.
-  if(tf !== "5m" || !candles || candles.length < 30 || !analysis || analysis.current === null) return;
-
-  const currentPrice = analysis.current;
-  const r = analysis.rsi;
-  const m = analysis.macd;
-  const e20 = analysis.ema20;
-  const e50 = analysis.ema50;
-
-  let direction = null;
-  let trendType = "NÖTR";
-  let strategy = "5dk Trend Takip Modeli";
-
-  const isUptrend = (e20 && e50 && currentPrice >= e20 && e20 >= e50);
-  const isDowntrend = (e20 && e50 && currentPrice <= e20 && e20 <= e50);
-  const macdBull = m && m.macd > m.signal;
-  const macdBear = m && m.macd < m.signal;
-
-  if(isUptrend || (analysis.score >= 58 && macdBull)){
-    direction = "AL";
-    trendType = "🟢 YÜKSELEN TREND";
-    strategy = currentPrice > e20 ? "EMA20 Üzeri Trend Devamı" : "Destek Tepkisi & Trend Kırılımı";
-  } else if(isDowntrend || (analysis.score <= 42 && macdBear)){
-    direction = "SAT";
-    trendType = "🔴 DÜŞEN TREND";
-    strategy = currentPrice < e20 ? "EMA20 Altı Düşüş Trendi" : "Direnç Reddi & Aşağı Trend";
-  } else if(analysis.score >= 50){
-    direction = "AL";
-    trendType = "🟢 YUKARI EĞİLİM";
-    strategy = "Trend İvmelenme Adayı";
-  } else {
-    direction = "SAT";
-    trendType = "🔴 AŞAĞI EĞİLİM";
-    strategy = "Düşüş İvmelenme Adayı";
-  }
-
-  if(!direction) return;
-
-  // Aynı anda yalnızca bir aktif 5dk tahmin tutulur. Önceki tahmin 5dk dolunca yeni tahmin açılır.
-  const existingActive = state.predictions.find(p => p.assetId === asset.id && p.timeframe === "5m" && p.status === "ACTIVE");
-  if(existingActive) return;
-
-  const horizonMs = 5 * 60 * 1000;
-  const levels = calculatePredictionLevels(currentPrice, analysis, direction, horizonMs);
-  const now = Date.now();
-  const expiresAt = now + horizonMs;
-  const confidence = calculateSignalConfidence(analysis);
-
-  const newPred = {
-    id: `#${String((state.predictions.reduce((m,p) => Math.max(m, parseInt(String(p.id || "").replace(/\D/g,""),10) || 0), 0) + 1)).padStart(4,"0")}`,
-    assetId: asset.id,
-    symbol: asset.symbol,
-    timeframe: "5m",
-    direction,
-    trendType,
-    strategy,
-    entryPrice: currentPrice,
-    targetPrice: levels.targetPrice,
-    stopPrice: levels.stopPrice,
-    status: "ACTIVE",
-    createdAt: now,
-    expiresAt,
-    lastCheckedPrice: currentPrice,
-    exitPrice: null,
-    netPnl: 0,
-    closeReason: null,
-    resultTime: null,
-    signalScore: Number(analysis.score) || 50,
-    confidence,
-    atr: Number(analysis.atr) || null,
-    marketRegime: analysis.trend || "NÖTR",
-    modelVersion: "MP-1.2-5M",
-    strategyVersion: "ATR-TREND-5M-v3",
-    mfe: 0,
-    mae: 0
-  };
-
-  state.predictions.unshift(newPred);
-  // Tablo yalnızca son 24 saati gösterir; ancak genel geçmişi gereksiz büyütme.
-  if(state.predictions.length > 2000) state.predictions.length = 2000;
-  savePredictions();
-  updatePredictionUI();
-  renderComprehensivePredTable();
-  showToast(`Yeni 5dk Trend Tahmini: ${newPred.id} ${asset.symbol} [${trendType}]`);
+function checkAndGeneratePrediction(asset,tf,candles,analysis){
+  if(tf!=="5m"||!candles||candles.length<IMPROVEMENT_CONFIG.data.minCandles||!analysis||analysis.current==null) return null;
+  const price=Number(analysis.current), score=Number(analysis.score)||50, confidence=calculateSignalConfidence(analysis), dist=Math.abs(score-50);
+  const up=[analysis.ema20>analysis.ema50,price>=analysis.ema20,analysis.macd?.macd>analysis.macd?.signal,score>=62].filter(Boolean).length;
+  const down=[analysis.ema20<analysis.ema50,price<=analysis.ema20,analysis.macd?.macd<analysis.macd?.signal,score<=38].filter(Boolean).length;
+  const direction=score>=58&&up>=2?"AL":score<=42&&down>=2?"SAT":dist>=IMPROVEMENT_CONFIG.prediction.minScoreDistance&&confidence>=IMPROVEMENT_CONFIG.prediction.minConfidence?(score>50?"AL":"SAT"):null;
+  if(!direction||getActivePrediction(asset.id)||(IMPROVEMENT_CONFIG.prediction.requireVolumeConfirmation&&!analysis.volume?.confirmed)) return null;
+  const horizonMs=5*60*1000, levels=calculatePredictionLevels(price,analysis,direction,horizonMs), now=Date.now();
+  const n={id:`#${String((state.predictions.reduce((m,p)=>Math.max(m,parseInt(String(p.id||"").replace(/\D/g,""),10)||0),0)+1)).padStart(4,"0")}`,assetId:asset.id,symbol:asset.symbol,timeframe:"5m",direction,trendType:direction==="AL"?"🟢 YÜKSELEN SİNYAL":"🔴 DÜŞEN SİNYAL",strategy:`${analysis.marketRegime||"RANGE"} · EMA/MACD/RSI`,entryPrice:price,targetPrice:levels.targetPrice,stopPrice:levels.stopPrice,status:"ACTIVE",createdAt:now,expiresAt:now+horizonMs,lastCheckedPrice:price,exitPrice:null,netPnl:0,closeReason:null,resultTime:null,signalScore:score,confidence,atr:Number(analysis.atr)||null,marketRegime:analysis.marketRegime||"BELİRSİZ",volumeRatio:Number(analysis.volume?.ratio)||null,modelVersion:"MP-2.0-5M",strategyVersion:"REGIME-EMA-MACD-RSI-v1",mfe:0,mae:0};
+  state.predictions.unshift(n); if(state.predictions.length>IMPROVEMENT_CONFIG.prediction.maxHistory) state.predictions.length=IMPROVEMENT_CONFIG.prediction.maxHistory; savePredictions(); updatePredictionUI(); renderPredictionList(); renderComprehensivePredTable(); showToast(`Yeni 5dk tahmin: ${n.id} ${asset.symbol} [${direction}] · Güven %${confidence}`); return n;
 }
 
-function evaluatePredictions(currentPrice, assetId){
-  if(!Number.isFinite(currentPrice) || !assetId) return;
-  let changed = false;
-  const now = Date.now();
-
-  state.predictions.forEach(p => {
-    if(p.status !== "ACTIVE" || p.assetId !== assetId || !Number.isFinite(p.entryPrice)) return;
-    p.lastCheckedPrice = currentPrice;
-    const expiresAt = Number(p.expiresAt) || (Number(p.createdAt) + IMPROVEMENT_CONFIG.prediction.defaultHorizonMs);
-    const pnl = calculatePnL(p.entryPrice, currentPrice, p.direction);
-    p.netPnl = pnl;
-    p.mfe = Math.max(Number(p.mfe) || 0, pnl);
-    p.mae = Math.min(Number(p.mae) || 0, pnl);
-
-    // 5 dakikalık tahminin yaşam döngüsü SABİTTİR:
-    // hedef/stop seviyesine erken ulaşsa bile kayıt 5 dakika dolmadan kapanmaz.
-    // Böylece her tahmin tam bir 5dk zaman penceresini temsil eder.
-    if(p.status === "ACTIVE" && now >= expiresAt){
-      p.status = pnl > 0 ? "SUCCESS" : pnl < 0 ? "FAILED" : "NEUTRAL";
-      p.closeReason = "5dk Vade Doldu";
-      p.resultTime = now;
-      p.exitPrice = currentPrice;
-      p.netPnl = pnl;
-      changed = true;
-    }
+function evaluatePredictions(currentPrice,assetId){
+  if(!Number.isFinite(currentPrice)||!assetId) return; let changed=false; const now=Date.now();
+  state.predictions.forEach(p=>{ if(p.status!=="ACTIVE"||p.assetId!==assetId||!Number.isFinite(Number(p.entryPrice))) return; const pnl=calculatePnL(Number(p.entryPrice),currentPrice,p.direction); p.lastCheckedPrice=currentPrice;p.netPnl=pnl;p.mfe=Math.max(Number(p.mfe)||0,pnl);p.mae=Math.min(Number(p.mae)||0,pnl); const exp=Number(p.expiresAt)||Number(p.createdAt)+5*60*1000;
+    if(now>=exp){p.status=pnl>0.0001?"SUCCESS":pnl<-0.0001?"FAILED":"NEUTRAL";p.closeReason="Tam 5dk Vade Doldu";p.resultTime=now;p.exitPrice=currentPrice;p.netPnl=pnl;changed=true;}
   });
-
-  if(changed){
-    savePredictions();
-    recalculateWinRate();
-    updatePredictionUI();
-    renderPredictionList();
-    renderComprehensivePredTable();
-  }
+  if(changed){savePredictions();recalculateWinRate();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();} return changed;
 }
 
 // Seçili varlık ve takip edilen varlıkları 5dk diliminde tarama motoru
 let isScanningAll = false;
-async function scanAllMonitoredAssets(manual = false){
-  if(isScanningAll) return;
-  isScanningAll = true;
-  if(manual) showToast(`${state.selectedAsset.symbol} 5dk trend tahmini hesaplanıyor...`);
-
-  // Öncelikle ekrandaki seçili varlık için trend tahmini üret
-  try {
-    const curAsset = state.selectedAsset;
-    let candles = state.data?.candles?.candles || state.data?.lastKnownCandles;
-    if(!candles || candles.length < 30){
-      if(curAsset.provider === "binance"){
-        const cRaw = await Adapters.binance.candles(curAsset, "5m");
-        const cNorm = Normalizer.candles(cRaw, "binance");
-        candles = cNorm.candles;
-      }
-    }
-    if(candles && candles.length >= 20){
-      const an = calculateAnalysis(candles);
-      if(an){
-        // Önce süresi dolan aktif tahmini kapat, ardından aynı anda
-        // yeni 5dk tahmin aç. Bu sıra 5dk -> yeni 5dk geçişini garanti eder.
-        if(an.current) evaluatePredictions(an.current, curAsset.id);
-        checkAndGeneratePrediction(curAsset, "5m", candles, an);
-      }
-    }
-  } catch(e){}
-
-  isScanningAll = false;
-  recalculateWinRate();
-  updatePredictionUI();
-  renderPredictionList();
-  renderComprehensivePredTable();
-  if(manual) showToast(`${state.selectedAsset.symbol} 5dk trend analizi ve tablosu güncellendi.`);
+async function scanAllMonitoredAssets(manual=false){
+  if(isScanningAll||!navigator.onLine)return; isScanningAll=true; const assets=[...new Map([state.selectedAsset,...ASSETS.filter(a=>state.favorites?.has(a.id))].filter(Boolean).map(a=>[a.id,a])).values()];
+  if(manual)showToast(`${assets.length} takipli varlık için 5dk tarama başlatıldı.`);
+  try{for(const asset of assets){try{const d=await engine.load(asset,"5m",true);if(d?.quote?.price!=null&&d?.candles?.candles?.length>=30){evaluatePredictions(Number(d.quote.price),asset.id);if(!getActivePrediction(asset.id))checkAndGeneratePrediction(asset,"5m",d.candles.candles,d.analysis||calculateAnalysis(d.candles.candles));}}catch(e){console.warn(`5m tarama hatası ${asset.symbol}:`,e);}}}finally{isScanningAll=false;recalculateWinRate();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();if(manual)showToast(`5dk tarama tamamlandı: ${assets.length} varlık işlendi.`);}
 }
 
 function recalculateWinRate(){
@@ -2414,6 +2340,11 @@ function updatePredictionUI(){
 
   $("#statWinRate").textContent = `${state.shortTermWinRate}%`;
   $("#statTotalPreds").textContent = state.predictions.length;
+  const pm=calculatePredictionMetrics(state.predictions);
+  const pe=$("#predMetricPF"), ee=$("#predMetricExp"), de=$("#predMetricDD");
+  if(pe) pe.textContent=pm.profitFactor===Infinity?"∞":pm.profitFactor.toFixed(2);
+  if(ee) ee.textContent=`${pm.expectancy>=0?"+":""}${pm.expectancy.toFixed(2)}%`;
+  if(de) de.textContent=`${pm.maxDrawdown.toFixed(2)}%`;
   $("#statModeStatus").textContent = state.highRiskUnlocked ? "AÇIK (4H)" : "KAPALI";
   $("#statModeStatus").className = `stat-card-val ${state.highRiskUnlocked ? "good" : "warn"}`;
 }
@@ -2451,125 +2382,15 @@ function renderPredictionList(){
 }
 
 // Geçmiş 5dk Trend Tahminlerini Mum Verilerinden Otomatik Oluşturma ve Doğrulama
-function ensureHistoricalPredictions(asset, candles, force = false){
+function ensureHistoricalPredictions(asset, candles, force=false){
+  // Canlı tahmin geçmişini mumlardan sentetik olarak üretmiyoruz.
+  // Böylece geçmişteki fiyat hareketleri sonradan “gerçekleşmiş tahmin” gibi gösterilemez.
   if(!asset) return;
-  candles = candles || state.data?.candles?.candles || [];
-  if(!Array.isArray(candles) || candles.length < 35) return;
-
-  // SADECE SON 24 SAAT + SADECE 5 DAKİKALIK TAHMİNLER.
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const FIVE_MIN_MS = 5 * 60 * 1000;
-  const now = Date.now();
-  const cutoff = now - DAY_MS;
-
-  // Eski (24 saatten önceki) bu varlığın prediction kayıtlarını tablo/hesaplamadan çıkar.
-  state.predictions = state.predictions.filter(p => {
-    if(p.assetId !== asset.id) return true;
-    return p.timeframe === "5m" && Number(p.createdAt) >= cutoff;
-  });
-
-  // force yalnızca son 24 saati yeniden üretir.
-  if(force){
-    state.predictions = state.predictions.filter(p => p.assetId !== asset.id);
-  }
-
-  // Candle'ları zaman sırasına sok ve yalnızca gerçek 5m candle'ları kullan.
-  const sorted = candles
-    .filter(c => c && Number.isFinite(Number(c.close)) && Number.isFinite(Number(c.time)))
-    .map(c => ({...c, time:Number(c.time)}))
-    .sort((a,b) => a.time - b.time);
-
-  if(sorted.length < 35) return;
-
-  // Son 24 saatteki her tamamlanmış 5dk dilimi için bir tahmin üret.
-  // En son candle henüz açık olabilir; bu nedenle bir sonraki candle'ı gerektiren
-  // geçmiş tahminlerde son tamamlanmış candle'a kadar gideriz.
-  const latestCompletedIndex = sorted.length - 2;
-  const generated = [];
-
-  for(let i = 30; i <= latestCompletedIndex; i++){
-    const c = sorted[i];
-    const next = sorted[i + 1];
-    if(!c || !next || c.time < cutoff) continue;
-    if(next.time - c.time > FIVE_MIN_MS * 1.5) continue;
-
-    const history = sorted.slice(0, i + 1);
-    const analysis = calculateAnalysis(history);
-    if(!analysis || !Number.isFinite(analysis.current)) continue;
-
-    const currentPrice = c.close;
-    const r = analysis.rsi;
-    const m = analysis.macd;
-    const e20 = analysis.ema20;
-    const e50 = analysis.ema50;
-    const isUptrend = (e20 && e50 && currentPrice >= e20 && e20 >= e50);
-    const isDowntrend = (e20 && e50 && currentPrice <= e20 && e20 <= e50);
-    const macdBull = m && m.macd > m.signal;
-    const macdBear = m && m.macd < m.signal;
-
-    let direction, trendType, strategy;
-    if(isUptrend || (analysis.score >= 58 && macdBull)){
-      direction = "AL"; trendType = "🟢 YÜKSELEN TREND";
-      strategy = currentPrice > e20 ? "EMA20 Üzeri Trend Devamı" : "Destek Tepkisi & Trend Kırılımı";
-    } else if(isDowntrend || (analysis.score <= 42 && macdBear)){
-      direction = "SAT"; trendType = "🔴 DÜŞEN TREND";
-      strategy = currentPrice < e20 ? "EMA20 Altı Düşüş Trendi" : "Direnç Reddi & Aşağı Trend";
-    } else if(analysis.score >= 50){
-      direction = "AL"; trendType = "🟢 YUKARI EĞİLİM"; strategy = "Trend İvmelenme Adayı";
-    } else {
-      direction = "SAT"; trendType = "🔴 AŞAĞI EĞİLİM"; strategy = "Düşüş İvmelenme Adayı";
-    }
-
-    const levels = calculatePredictionLevels(currentPrice, analysis, direction, FIVE_MIN_MS);
-    const createdTime = c.time;
-    const expiresAt = createdTime + FIVE_MIN_MS;
-    let status = "ACTIVE";
-    let exitPrice = next.close;
-    let resultTime = next.time;
-    let closeReason = "5dk Doldu";
-    let netPnl = calculatePnL(currentPrice, next.close, direction);
-
-    const targetHit = direction === "AL" ? next.high >= levels.targetPrice : next.low <= levels.targetPrice;
-    const stopHit = direction === "AL" ? next.low <= levels.stopPrice : next.high >= levels.stopPrice;
-
-    // Aynı 5dk candle'ında hem hedef hem stop görülürse sıralama bilinmediği için belirsiz.
-    if(targetHit && stopHit){
-      status = "NEUTRAL";
-      closeReason = "Hedef + Stop Aynı Mumda (Belirsiz)";
-      exitPrice = next.close;
-    } else if(targetHit){
-      status = "SUCCESS";
-      closeReason = "Hedefe Ulaştı";
-      exitPrice = levels.targetPrice;
-      netPnl = calculatePnL(currentPrice, exitPrice, direction);
-    } else if(stopHit){
-      status = "FAILED";
-      closeReason = "Stop Seviyesi";
-      exitPrice = levels.stopPrice;
-      netPnl = calculatePnL(currentPrice, exitPrice, direction);
-    }
-
-    generated.push({
-      id: `#H${String(Math.floor(createdTime / FIVE_MIN_MS)).slice(-8)}`,
-      assetId: asset.id, symbol: asset.symbol, timeframe: "5m", direction, trendType, strategy,
-      entryPrice: currentPrice, targetPrice: levels.targetPrice, stopPrice: levels.stopPrice,
-      status, createdAt: createdTime, expiresAt, resultTime, exitPrice, lastCheckedPrice: exitPrice,
-      netPnl, closeReason, signalScore:Number(analysis.score)||50, confidence:calculateSignalConfidence(analysis),
-      atr:Number(analysis.atr)||null, marketRegime:analysis.trend||"NÖTR",
-      modelVersion:"MP-1.2-5M", strategyVersion:"ATR-TREND-5M-v3", mfe:Math.max(0,netPnl), mae:Math.min(0,netPnl)
-    });
-  }
-
-  const existingKeys = new Set(state.predictions.filter(p => p.assetId === asset.id && p.timeframe === "5m").map(p => Number(p.createdAt)));
-  for(const g of generated){
-    if(!existingKeys.has(g.createdAt)) state.predictions.push(g);
-  }
-
-  // Sadece son 24 saat + 5m kayıtları tutulur.
-  state.predictions = state.predictions.filter(p => p.assetId !== asset.id || (p.timeframe === "5m" && Number(p.createdAt) >= cutoff));
-  state.predictions.sort((a,b) => b.createdAt - a.createdAt);
+  const cutoff=Date.now()-24*60*60*1000;
+  state.predictions=state.predictions.filter(p=>p.assetId!==asset.id || Number(p.createdAt)>=cutoff);
   savePredictions();
   recalculateWinRate();
+  return state.predictions.filter(p=>p.assetId===asset.id&&p.timeframe==="5m");
 }
 
 // Seçili Varlığın 5dk Trend Tahminleri Tablosu (Yeniden Eskiye - Gerçekleşme Durumlu)
@@ -2615,7 +2436,7 @@ function renderComprehensivePredTable(){
       <tr>
         <td colspan="12" style="text-align:center; padding:26px; color:#64748b; font-size:11.5px;">
           ${currentAsset.symbol} için henüz kaydedilmiş 5dk trend tahmini yok.<br>
-          <button type="button" onclick="ensureHistoricalPredictions(state.selectedAsset, null, true); renderComprehensivePredTable();" style="margin-top:8px; padding:6px 14px; border-radius:7px; background:#0284c7; color:#fff; font-size:10.5px; font-weight:700; border:none; cursor:pointer;">🔄 Geçmiş Tahminleri Mum Verilerinden Yükle</button>
+          <button type="button" id="emptyPredBacktestBtn" style="margin-top:8px; padding:6px 14px; border-radius:7px; background:#0284c7; color:#fff; font-size:10.5px; font-weight:700; border:none; cursor:pointer;">📊 Backtest Sonuçlarını Gör</button>
         </td>
       </tr>
     `;
@@ -2701,6 +2522,20 @@ function updatePredictionTableCountdowns(){
   });
 }
 
+function calculatePredictionMetrics(predictions=state.predictions){
+  const closed=predictions.filter(p=>["SUCCESS","FAILED","NEUTRAL"].includes(p.status)),wins=closed.filter(p=>p.status==="SUCCESS"),losses=closed.filter(p=>p.status==="FAILED");
+  const vals=closed.map(p=>Number(p.netPnl)||0), gp=wins.reduce((a,p)=>a+Math.max(0,Number(p.netPnl)||0),0), gl=Math.abs(losses.reduce((a,p)=>a+Math.min(0,Number(p.netPnl)||0),0));
+  let equity=0,peak=0,dd=0; vals.forEach(v=>{equity+=v;peak=Math.max(peak,equity);dd=Math.min(dd,equity-peak);});
+  return {total:closed.length,active:predictions.filter(p=>p.status==="ACTIVE").length,wins:wins.length,losses:losses.length,neutral:closed.filter(p=>p.status==="NEUTRAL").length,winRate:closed.length?wins.length/closed.length*100:0,avgPnl:closed.length?vals.reduce((a,b)=>a+b,0)/closed.length:0,avgWin:wins.length?gp/wins.length:0,avgLoss:losses.length?gl/losses.length:0,profitFactor:gl?gp/gl:(gp?Infinity:0),expectancy:closed.length?vals.reduce((a,b)=>a+b,0)/closed.length:0,maxDrawdown:Math.abs(dd),grossProfit:gp,grossLoss:gl};
+}
+function backtestPredictionEngine(candles,options={}){
+  const data=validateCandles(candles,IMPROVEMENT_CONFIG.data.minBacktestCandles); if(!data.length)return {error:"Backtest için yeterli temiz 5m candle yok.",trades:[],metrics:calculatePredictionMetrics([])};
+  const warmup=Math.max(60,Number(options.warmup)||200),horizonBars=Math.max(1,Number(options.horizonBars)||1),trades=[];
+  for(let i=warmup;i<data.length-horizonBars;i++){const w=data.slice(0,i+1),a=calculateAnalysis(w),score=Number(a?.score)||50;if(!a)continue;const up=[a.ema20>a.ema50,a.current>=a.ema20,a.macd?.macd>a.macd?.signal,score>=62].filter(Boolean).length,down=[a.ema20<a.ema50,a.current<=a.ema20,a.macd?.macd<a.macd?.signal,score<=38].filter(Boolean).length,dir=score>=58&&up>=2?"AL":score<=42&&down>=2?"SAT":null;if(!dir)continue;const raw=calculatePnL(data[i].close,data[i+horizonBars].close,dir),costs=((Number(options.feePct)||0)*2)+((Number(options.slippagePct)||0)*2);trades.push({time:data[i].time,direction:dir,entryPrice:data[i].close,exitPrice:data[i+horizonBars].close,netPnl:raw-costs,confidence:calculateSignalConfidence(a),marketRegime:a.marketRegime});}
+  return {trades,metrics:calculatePredictionMetrics(trades.map(t=>({status:t.netPnl>0?"SUCCESS":t.netPnl<0?"FAILED":"NEUTRAL",netPnl:t.netPnl})))};
+}
+window.MarketPulseAnalytics={calculatePredictionMetrics,backtestPredictionEngine};
+
 function exportPredictionsCsv(){
   const currentAsset = state.selectedAsset;
   const items = state.predictions.filter(p => p.assetId === currentAsset.id);
@@ -2709,7 +2544,7 @@ function exportPredictionsCsv(){
     return;
   }
 
-  const headers = ["ID", "Tarih", "Varlık", "Trend_Turu", "Strateji", "Sinyal", "Giris_Fiyati", "Hedef_Fiyat", "Stop_Fiyat", "Gerceklesen_Fiyat", "Durum", "Net_PnL_Yuzde"];
+  const headers = ["ID","Tarih","Varlık","Trend_Turu","Strateji","Sinyal","Giris_Fiyati","Hedef_Fiyat","Stop_Fiyat","Gerceklesen_Fiyat","Durum","Net_PnL_Yuzde","Guven","Rejim","MFE","MAE","Vade_Sonu"];
   const rows = items.map(p => [
     p.id,
     new Date(p.createdAt).toISOString(),
@@ -2722,7 +2557,7 @@ function exportPredictionsCsv(){
     p.stopPrice,
     p.lastCheckedPrice || p.entryPrice,
     p.status === "SUCCESS" ? "GERCEKLESTI" : p.status === "FAILED" ? "GERCEKLESMEDI" : "DEVAM_EDIYOR",
-    (p.netPnl || 0).toFixed(2) + "%"
+    (p.netPnl || 0).toFixed(2) + "%", p.confidence ?? "", p.marketRegime || "", (p.mfe || 0).toFixed(2) + "%", (p.mae || 0).toFixed(2) + "%", p.expiresAt ? new Date(p.expiresAt).toISOString() : ""
   ]);
 
   const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -3378,13 +3213,18 @@ class MarketDataEngine {
       updateAPIHealth(asset.provider, true);
     } catch(e){
       updateAPIHealth(asset.provider, false);
+      console.error(`[${asset.symbol}] Fiyat verisi alınamadı:`, e);
+      state.lastCandleError = null;
     }
 
     try {
       cRaw = await Adapters[asset.provider].candles(asset, timeframe);
       updateAPIHealth(asset.provider, true);
+      state.lastCandleError = null;
     } catch(e){
       updateAPIHealth(asset.provider, false);
+      console.error(`[${asset.symbol}] Mum verisi (chart) alınamadı:`, e);
+      state.lastCandleError = { symbol: asset.symbol, message: e?.message || String(e), status: e?.status ?? null };
     }
 
     try {
@@ -3397,6 +3237,8 @@ class MarketDataEngine {
 
     const quote = Normalizer.quote(qRaw, asset, asset.provider);
     const candles = Normalizer.candles(cRaw, asset.provider);
+    console.log(`[${asset.symbol}] ${candles.candles.length} mum verisi ayrıştırıldı.`);
+    const quality = markDataQuality(candles.candles);
     const news = nRaw?.error ? { error:true, data:[] } : { error:false, data: (Array.isArray(nRaw?.data) ? nRaw.data : Array.isArray(nRaw) ? nRaw : nRaw?.news || []).filter(i => i.title) };
 
     let analysis = null;
@@ -3416,7 +3258,7 @@ class MarketDataEngine {
       checkAndGeneratePrediction(asset, timeframe, candles.candles, analysis);
     }
 
-    const data = { asset, quote, candles, news, analysis };
+    const data = { asset, quote, candles, news, analysis, quality };
     this.cache.set(cacheKey, data);
     state.lastUpdate = Date.now();
     return data;
@@ -3654,7 +3496,17 @@ function renderChart(candles){
       activeCandles = state.data.lastKnownCandles;
     } else {
       const msg = $("#chartMessage");
-      if(msg){ msg.style.display = "flex"; msg.textContent = "Gerçek piyasa verisi alınamadı. Analiz ve tahmin devre dışı."; }
+      if(msg){
+        msg.style.display = "flex";
+        const err = state.lastCandleError;
+        let detail = "";
+        if(err && err.symbol === asset.symbol){
+          if(err.status === 404) detail = " (Sembol bu anda BiQuote üzerinde kote edilmiyor olabilir.)";
+          else if(err.status === 429) detail = " (Çok fazla istek - rate limit. Kısa süre sonra tekrar denenecek.)";
+          else if(err.message) detail = ` (Hata: ${escapeHtml(err.message)})`;
+        }
+        msg.textContent = `Gerçek piyasa verisi alınamadı. Analiz ve tahmin devre dışı.${detail}`;
+      }
       updateChartMarketState(state.data?.quote?.market?.status);
       return;
     }
@@ -4718,6 +4570,9 @@ if(bearForecastBtn){
   });
 }
 
+document.addEventListener("click",e=>{if(e.target?.id!=="emptyPredBacktestBtn")return;$("#settingsModal")?.classList.add("open");$("#settingsModalBackdrop")?.classList.add("open");$("#runBacktestBtn")?.click();});
+$("#runBacktestBtn")?.addEventListener("click",async()=>{const b=$("#runBacktestBtn"),a=state.selectedAsset;if(!a||!navigator.onLine){showToast("Backtest için çevrimiçi veri gerekli.");return;}b.disabled=true;b.textContent="5m geçmiş verisi çekiliyor...";try{const d=await engine.load(a,"5m",true),r=backtestPredictionEngine(d?.candles?.candles||[],{warmup:200,horizonBars:1});if(r.error)showToast(r.error);else{const m=r.metrics;showToast(`Backtest: ${m.total} işlem · WR %${m.winRate.toFixed(1)} · PF ${m.profitFactor===Infinity?"∞":m.profitFactor.toFixed(2)} · Exp ${m.expectancy.toFixed(2)}%`);}}catch(e){console.warn(e);showToast("Backtest sırasında veri hatası oluştu.");}finally{b.disabled=false;b.textContent="Geçmiş 5m veride Backtest Çalıştır";}});
+
 // TAHMİN VADESİ SEÇİM TUŞLARI (5dk, 10dk, 20dk, 30dk, 1saat, 4saat, 1gün)
 $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -4782,8 +4637,6 @@ $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
      // engine.load aktif tahmini kapatmış olabilir. Hâlâ aktif kayıt varsa
      // yeni kayıt açılmaz; yoksa aynı 5m verisiyle bir sonraki tahmin açılır.
      if(data5m?.quote?.price != null && data5m?.candles?.candles?.length >= 30){
-       evaluatePredictions(Number(data5m.quote.price), asset.id);
-
        if(!getActivePrediction(asset.id)){
          const an = data5m.analysis || calculateAnalysis(data5m.candles.candles);
          if(an) checkAndGeneratePrediction(asset, "5m", data5m.candles.candles, an);
@@ -5035,7 +4888,8 @@ $("#clearPredsBtn")?.addEventListener("click", () => {
     updatePredictionUI();
     renderPredictionList();
     renderComprehensivePredTable();
-    showToast("Tahmin kayıtları temizlendi.");
+    scheduleNextPredictionCycle();
+    showToast("Tahmin kayıtları temizlendi. Yeni 5dk tahmin hazırlanıyor.");
   }
 });
 
@@ -5366,6 +5220,7 @@ $$(".tf").forEach(button => {
     updateTfLabel();
     saveSettings();
     await loadData(false);
+    scheduleNextPredictionCycle();
   });
 });
 
@@ -5883,6 +5738,7 @@ window.addEventListener("offline", () => {
 window.addEventListener("online", () => {
   showToast("Bağlantı sağlandı.");
   loadData(true);
+  setTimeout(() => scheduleNextPredictionCycle(), 250);
 });
 
 setInterval(() => {
