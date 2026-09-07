@@ -1283,7 +1283,7 @@ const STATUS = Object.freeze({
 
 function makeAsset(id, name, shortName, category, icon, provider, exchange, options={}){
   return {
-    id, symbol: id, name, shortName, category, icon,
+    id, symbol: options.symbol ?? id, name, shortName, category, icon,
     badge: options.badge ?? null, provider, exchange,
     dataProfile: {
       realtime: options.realtime ?? true,
@@ -1387,9 +1387,9 @@ const ASSETS = [
   makeAsset("KOZAL","Koza Altın","Koza Altın İşletmeleri","tr","K","biquote","BIST",{badge:"BIST30"}),
   makeAsset("GAUTRY","Gram Altın (TL)","Gram Altın Türk Lirası","tr","Au","biquote","KAPALICARSI",{badge:"ALTIN TL"}),
   makeAsset("CEYREK","Çeyrek Altın (TL)","Çeyrek Altın Kapalıçarşı","tr","Au","biquote","KAPALICARSI",{badge:"SARRAFİYE"}),
-  makeAsset("USDTRY","USD / TRY","Amerikan Doları / Türk Lirası","forex","$","biquote","FOREX",{badge:"DÖVİZ TL"}),
-  makeAsset("EURTRY","EUR / TRY","Euro / Türk Lirası","forex","€","biquote","FOREX",{badge:"DÖVİZ TL"}),
-  makeAsset("GBPTRY","GBP / TRY","İngiliz Sterlini / Türk Lirası","forex","£","biquote","FOREX",{badge:"DÖVİZ TL"})
+  makeAsset("USDTRY-TR","USD / TRY","Amerikan Doları / Türk Lirası","forex","$","biquote","FOREX",{symbol:"USDTRY",badge:"DÖVİZ TL"}),
+  makeAsset("EURTRY-TR","EUR / TRY","Euro / Türk Lirası","forex","€","biquote","FOREX",{symbol:"EURTRY",badge:"DÖVİZ TL"}),
+  makeAsset("GBPTRY-TR","GBP / TRY","İngiliz Sterlini / Türk Lirası","forex","£","biquote","FOREX",{symbol:"GBPTRY",badge:"DÖVİZ TL"})
 ];
 
 /* ============================================================
@@ -2207,6 +2207,112 @@ function detectMarketRegime(candles, a={}){
   const e20=Number(a.ema20)||ema(candles.map(c=>c.close),20).at(-1), e50=Number(a.ema50)||ema(candles.map(c=>c.close),50).at(-1), slope=e20&&e50?Math.abs((e20-e50)/price):0;
   if(atrPct>=0.025||range>=0.12) return "YÜKSEK VOLATİLİTE"; if(slope>=0.012) return e20>e50?"TREND-YUKARI":"TREND-AŞAĞI"; if(atrPct<=0.004&&range<=0.035) return "DAR ARALIK"; return "RANGE";
 }
+/* ============================================================
+   EK TEYİT KATMANI (CONFLUENCE ENGINE)
+   Mum formasyonları, piyasa yapısı/trend çizgisi kırılımı (ICT BOS),
+   Fair Value Gap (ICT) ve CRT+TBS (Candle Range Theory + True Body
+   Size) tersine dönüş modeli. Her biri ana EMA/RSI/MACD skoruna
+   SINIRLI (±15 puan tavan) bir katkı yapar; ekranda ise en güçlü
+   1-3 teyit gösterilir ki kullanıcı onlarca sinyalle boğulmasın.
+============================================================ */
+function detectCandlestickPattern(candles){
+  if(!candles || candles.length < 3) return null;
+  const c1 = candles[candles.length - 2], c2 = candles[candles.length - 1];
+  const body = c => Math.abs(c.close - c.open);
+  const range = c => (c.high - c.low) || 1e-9;
+  const upperWick = c => c.high - Math.max(c.open, c.close);
+  const lowerWick = c => Math.min(c.open, c.close) - c.low;
+  const isBull = c => c.close > c.open, isBear = c => c.close < c.open;
+
+  if(isBear(c1) && isBull(c2) && c2.close >= c1.open && c2.open <= c1.close && body(c2) >= body(c1) * 0.9){
+    return {name:"BOĞA YUTAN MUM", tag:"🕯️ Boğa Yutan Mum", bias:1, weight:6};
+  }
+  if(isBull(c1) && isBear(c2) && c2.open >= c1.close && c2.close <= c1.open && body(c2) >= body(c1) * 0.9){
+    return {name:"AYI YUTAN MUM", tag:"🕯️ Ayı Yutan Mum", bias:-1, weight:6};
+  }
+  if(lowerWick(c2) >= body(c2) * 2 && upperWick(c2) <= body(c2) * 0.6 && body(c2) / range(c2) < 0.4){
+    return {name:"ÇEKİÇ (HAMMER)", tag:"🕯️ Çekiç Formasyonu", bias:1, weight:4};
+  }
+  if(upperWick(c2) >= body(c2) * 2 && lowerWick(c2) <= body(c2) * 0.6 && body(c2) / range(c2) < 0.4){
+    return {name:"KAYAN YILDIZ", tag:"🕯️ Kayan Yıldız", bias:-1, weight:4};
+  }
+  if(body(c2) / range(c2) < 0.08){
+    return {name:"DOJI", tag:"🕯️ Doji (Kararsızlık)", bias:0, weight:2};
+  }
+  return null;
+}
+
+function detectMarketStructure(candles){
+  if(!candles || candles.length < 15) return null;
+  const n = candles.length, pivotHighs = [], pivotLows = [];
+  for(let i = 2; i < n - 2; i++){
+    const c = candles[i];
+    if(c.high > candles[i-1].high && c.high > candles[i-2].high && c.high > candles[i+1].high && c.high > candles[i+2].high) pivotHighs.push(c.high);
+    if(c.low < candles[i-1].low && c.low < candles[i-2].low && c.low < candles[i+1].low && c.low < candles[i+2].low) pivotLows.push(c.low);
+  }
+  if(pivotHighs.length < 2 || pivotLows.length < 2) return null;
+  const lastHigh = pivotHighs[pivotHighs.length-1], prevHigh = pivotHighs[pivotHighs.length-2];
+  const lastLow = pivotLows[pivotLows.length-1], prevLow = pivotLows[pivotLows.length-2];
+  const higherHigh = lastHigh > prevHigh, higherLow = lastLow > prevLow;
+  const lowerHigh = lastHigh < prevHigh, lowerLow = lastLow < prevLow;
+  const close = candles[n-1].close;
+
+  let bias = 0, weight = 0, tag = null;
+  if(higherHigh && higherLow){ bias = 1; weight = 5; tag = "📐 Yükselen Trend Yapısı (HH/HL)"; }
+  else if(lowerHigh && lowerLow){ bias = -1; weight = 5; tag = "📐 Düşen Trend Yapısı (LH/LL)"; }
+
+  // Yapı Kırılımı / Trend Çizgisi Kırılımı (Break of Structure)
+  if(close > lastHigh && bias <= 0){ bias = 1; weight = 7; tag = "📐 Trend Çizgisi Kırılımı ↑ (BOS)"; }
+  else if(close < lastLow && bias >= 0){ bias = -1; weight = 7; tag = "📐 Trend Çizgisi Kırılımı ↓ (BOS)"; }
+
+  return tag ? {name:tag.replace(/^📐 /,""), tag, bias, weight} : null;
+}
+
+function detectFVG(candles){
+  if(!candles || candles.length < 10) return null;
+  const n = candles.length, cur = candles[n-1].close, lookback = Math.min(15, n-2);
+  for(let i = n-2; i >= n-lookback; i--){
+    const a = candles[i-1], b = candles[i], c = candles[i+1];
+    if(!a || !b || !c) continue;
+    if(a.high < c.low){
+      const gapLow = a.high, gapHigh = c.low;
+      const filled = candles.slice(i+2).some(k => k.low <= gapHigh);
+      if(!filled && cur <= gapHigh * 1.002 && cur >= gapLow * 0.994){
+        return {name:"BOĞA FVG", tag:"⬜ FVG Destek Bölgesi (ICT)", bias:1, weight:5};
+      }
+    }
+    if(a.low > c.high){
+      const gapHigh = a.low, gapLow = c.high;
+      const filled = candles.slice(i+2).some(k => k.high >= gapLow);
+      if(!filled && cur >= gapLow * 0.998 && cur <= gapHigh * 1.006){
+        return {name:"AYI FVG", tag:"⬜ FVG Direnç Bölgesi (ICT)", bias:-1, weight:5};
+      }
+    }
+  }
+  return null;
+}
+
+function detectCRT_TBS(candles){
+  if(!candles || candles.length < 3) return null;
+  const n = candles.length;
+  const c1 = candles[n-3], c2 = candles[n-2], c3 = candles[n-1];
+  const body = c => Math.abs(c.close - c.open);
+  const range = c => (c.high - c.low) || 1e-9;
+  const tbs = c => body(c) / range(c); // True Body Size oranı
+
+  const bullSweep = c2.low < c1.low && c2.close > c1.low;
+  const bullConfirm = c3.close > c2.close && c3.close > c3.open && tbs(c3) >= 0.5;
+  if(bullSweep && bullConfirm){
+    return {name:"CRT+TBS BOĞA DÖNÜŞ", tag:"🎯 CRT+TBS Boğa Dönüşü", bias:1, weight:7};
+  }
+  const bearSweep = c2.high > c1.high && c2.close < c1.high;
+  const bearConfirm = c3.close < c2.close && c3.close < c3.open && tbs(c3) >= 0.5;
+  if(bearSweep && bearConfirm){
+    return {name:"CRT+TBS AYI DÖNÜŞ", tag:"🎯 CRT+TBS Ayı Dönüşü", bias:-1, weight:7};
+  }
+  return null;
+}
+
 function calculateAnalysis(candles){
   if(!candles || candles.length < 10) return null;
   const closes = candles.map(x => x.close);
@@ -2247,7 +2353,22 @@ function calculateAnalysis(candles){
   }
   const volume = calculateVolumeContext(candles);
   if(volume.ratio != null){ if(volume.ratio>=1.35) score+=5; else if(volume.ratio<=0.60) score-=3; }
+
+  // Ek teyit katmanı: mum formasyonu, trend yapısı/BOS, FVG, CRT+TBS.
+  // Tavan ±15 puan ile ana göstergeleri asla ezmez, sadece teyit/incelik katar.
+  const confluenceHits = [
+    detectCandlestickPattern(candles),
+    detectMarketStructure(candles),
+    detectFVG(candles),
+    detectCRT_TBS(candles)
+  ].filter(Boolean);
+  const confluenceDelta = clamp(confluenceHits.reduce((sum, c) => sum + c.bias * c.weight, 0), -15, 15);
+  score += confluenceDelta;
   score = clamp(score, 0, 100);
+  const confluences = confluenceHits
+    .filter(c => c.tag && c.bias !== 0)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 3);
 
   let signal = "NÖTR", trend = "NÖTR";
   if(score >= 62) signal = "POZİTİF";
@@ -2259,12 +2380,18 @@ function calculateAnalysis(candles){
   }
 
   const base={current,ema20,ema50,ema200,rsi:rsiVal,atr:atrVal,macd:macdVal,momentum,support:sup,resistance:res,score,signal,trend};
-  return {...base, volume, marketRegime:detectMarketRegime(candles,base)};
+  return {...base, volume, confluences, marketRegime:detectMarketRegime(candles,base)};
 }
 
 /* ============================================================
    PREDICTION TRACKER ENGINE (MADDE 3)
 ============================================================ */
+function buildStrategyLabel(analysis){
+  const base = `${analysis.marketRegime||"RANGE"} · EMA/MACD/RSI`;
+  const tags = (analysis.confluences||[]).slice(0,2).map(c=>c.tag).filter(Boolean);
+  return tags.length ? `${base} + ${tags.join(" + ")}` : base;
+}
+
 function checkAndGeneratePrediction(asset,tf,candles,analysis){
   if(tf!=="5m"||!candles||candles.length<IMPROVEMENT_CONFIG.data.minCandles||!analysis||analysis.current==null) return null;
   const price=Number(analysis.current), score=Number(analysis.score)||50, confidence=calculateSignalConfidence(analysis), dist=Math.abs(score-50);
@@ -2273,7 +2400,7 @@ function checkAndGeneratePrediction(asset,tf,candles,analysis){
   const direction=score>=58&&up>=2?"AL":score<=42&&down>=2?"SAT":dist>=IMPROVEMENT_CONFIG.prediction.minScoreDistance&&confidence>=IMPROVEMENT_CONFIG.prediction.minConfidence?(score>50?"AL":"SAT"):null;
   if(!direction||getActivePrediction(asset.id)||(IMPROVEMENT_CONFIG.prediction.requireVolumeConfirmation&&!analysis.volume?.confirmed)) return null;
   const horizonMs=5*60*1000, levels=calculatePredictionLevels(price,analysis,direction,horizonMs), now=Date.now();
-  const n={id:`#${String((state.predictions.reduce((m,p)=>Math.max(m,parseInt(String(p.id||"").replace(/\D/g,""),10)||0),0)+1)).padStart(4,"0")}`,assetId:asset.id,symbol:asset.symbol,timeframe:"5m",direction,trendType:direction==="AL"?"🟢 YÜKSELEN SİNYAL":"🔴 DÜŞEN SİNYAL",strategy:`${analysis.marketRegime||"RANGE"} · EMA/MACD/RSI`,entryPrice:price,targetPrice:levels.targetPrice,stopPrice:levels.stopPrice,status:"ACTIVE",createdAt:now,expiresAt:now+horizonMs,lastCheckedPrice:price,exitPrice:null,netPnl:0,closeReason:null,resultTime:null,signalScore:score,confidence,atr:Number(analysis.atr)||null,marketRegime:analysis.marketRegime||"BELİRSİZ",volumeRatio:Number(analysis.volume?.ratio)||null,modelVersion:"MP-2.0-5M",strategyVersion:"REGIME-EMA-MACD-RSI-v1",mfe:0,mae:0};
+  const n={id:`#${String((state.predictions.reduce((m,p)=>Math.max(m,parseInt(String(p.id||"").replace(/\D/g,""),10)||0),0)+1)).padStart(4,"0")}`,assetId:asset.id,symbol:asset.symbol,timeframe:"5m",direction,trendType:direction==="AL"?"🟢 YÜKSELEN SİNYAL":"🔴 DÜŞEN SİNYAL",strategy:buildStrategyLabel(analysis),entryPrice:price,targetPrice:levels.targetPrice,stopPrice:levels.stopPrice,status:"ACTIVE",createdAt:now,expiresAt:now+horizonMs,lastCheckedPrice:price,exitPrice:null,netPnl:0,closeReason:null,resultTime:null,signalScore:score,confidence,atr:Number(analysis.atr)||null,marketRegime:analysis.marketRegime||"BELİRSİZ",volumeRatio:Number(analysis.volume?.ratio)||null,modelVersion:"MP-2.1-5M",strategyVersion:"REGIME-EMA-MACD-RSI-ICT-CRT-v1",mfe:0,mae:0};
   state.predictions.unshift(n); if(state.predictions.length>IMPROVEMENT_CONFIG.prediction.maxHistory) state.predictions.length=IMPROVEMENT_CONFIG.prediction.maxHistory; savePredictions(); updatePredictionUI(); renderPredictionList(); renderComprehensivePredTable(); showToast(`Yeni 5dk tahmin: ${n.id} ${asset.symbol} [${direction}] · Güven %${confidence}`); return n;
 }
 
@@ -2576,13 +2703,13 @@ function exportPredictionsCsv(){
    (5dk, 10dk, 20dk, 30dk, 1saat, 4saat, 1gün)
 ============================================================ */
 const HORIZON_CONFIGS = {
-  "5m":  { label: "5dk",   steps: 6,  movePct: 0.0045, stopPct: 0.0025, volStep: 0.0008, conf: 50, text: "5 dakika" },
-  "10m": { label: "10dk",  steps: 8,  movePct: 0.0075, stopPct: 0.0040, volStep: 0.0012, conf: 50, text: "10 dakika" },
-  "20m": { label: "20dk",  steps: 10, movePct: 0.0110, stopPct: 0.0055, volStep: 0.0016, conf: 50, text: "20 dakika" },
-  "30m": { label: "30dk",  steps: 12, movePct: 0.0150, stopPct: 0.0070, volStep: 0.0020, conf: 50, text: "30 dakika" },
-  "1h":  { label: "1 saat",steps: 14, movePct: 0.0220, stopPct: 0.0100, volStep: 0.0026, conf: 50, text: "1 saat" },
-  "4h":  { label: "4 saat",steps: 18, movePct: 0.0380, stopPct: 0.0180, volStep: 0.0035, conf: 50, text: "4 saat" },
-  "1d":  { label: "1 gün", steps: 22, movePct: 0.0600, stopPct: 0.0280, volStep: 0.0048, conf: 50, text: "1 gün" }
+  "5m":  { label: "5dk",   steps: 6,  movePct: 0.0045, stopPct: 0.0025, volStep: 0.0008, conf: 50, confDecay: 1.00, text: "5 dakika" },
+  "10m": { label: "10dk",  steps: 8,  movePct: 0.0075, stopPct: 0.0040, volStep: 0.0012, conf: 50, confDecay: 0.97, text: "10 dakika" },
+  "20m": { label: "20dk",  steps: 10, movePct: 0.0110, stopPct: 0.0055, volStep: 0.0016, conf: 50, confDecay: 0.93, text: "20 dakika" },
+  "30m": { label: "30dk",  steps: 12, movePct: 0.0150, stopPct: 0.0070, volStep: 0.0020, conf: 50, confDecay: 0.88, text: "30 dakika" },
+  "1h":  { label: "1 saat",steps: 14, movePct: 0.0220, stopPct: 0.0100, volStep: 0.0026, conf: 50, confDecay: 0.78, text: "1 saat" },
+  "4h":  { label: "4 saat",steps: 18, movePct: 0.0380, stopPct: 0.0180, volStep: 0.0035, conf: 50, confDecay: 0.62, text: "4 saat" },
+  "1d":  { label: "1 gün", steps: 22, movePct: 0.0600, stopPct: 0.0280, volStep: 0.0048, conf: 50, confDecay: 0.48, text: "1 gün" }
 };
 
 function horizonToMs(h){
@@ -2642,10 +2769,18 @@ function generateInstantForecast(horizon = "30m", forceRedraw = false){
   if(sInvalid) sInvalid.textContent = `İptal / Stop: $${formatPrice(bearStop)} üzerine toparlanma senaryoyu bozar.`;
   if(sDelta) sDelta.textContent = `-${bearDeltaPct}%`;
 
+  // Güven, statik bir sayı değil; gerçek analiz skoruna göre yön bazlı hesaplanır
+  // ve vade uzadıkça (piyasa gürültüsü/haber riski arttığından) confDecay ile düşürülür.
+  const baseConf = calculateSignalConfidence(analysis);
+  const dirBias = (Number(analysis?.score) || 50) - 50; // -50..+50
+  const bullConf = Math.round(clamp((baseConf + dirBias * 0.4) * cfg.confDecay, 22, 92));
+  const bearConf = Math.round(clamp((baseConf - dirBias * 0.4) * cfg.confDecay, 22, 92));
+  const longTermNote = cfg.confDecay <= 0.78 ? " · Uzun vadede güven payı azaltıldı" : "";
+
   const bMeta = $("#bullForecastMeta");
-  if(bMeta) bMeta.innerHTML = `<span>Hedef Varış: ~${cfg.label}</span><span>Tahmini Güven: %${cfg.conf}</span>`;
+  if(bMeta) bMeta.innerHTML = `<span>Hedef Varış: ~${cfg.label}</span><span>Tahmini Güven: %${bullConf}${longTermNote}</span>`;
   const sMeta = $("#bearForecastMeta");
-  if(sMeta) sMeta.innerHTML = `<span>Hedef Varış: ~${cfg.label}</span><span>Tahmini Güven: %${cfg.conf - 2}</span>`;
+  if(sMeta) sMeta.innerHTML = `<span>Hedef Varış: ~${cfg.label}</span><span>Tahmini Güven: %${bearConf}${longTermNote}</span>`;
 
   // Eğer grafikler açık ise anlık yeniden çiz
   if(state.bullForecastOpen || forceRedraw){
@@ -3187,7 +3322,10 @@ function renderCommentary(asset, tf, candles, an){
   const rsiComment = r >= 65 ? "RSI aşırı alım bölgesine yakın seyrediyor, momentum güçlü." : r <= 35 ? "RSI aşırı satım bölgesinde dip arayışı sürüyor." : "RSI nötr bantta dengeli alım/satım hacmi sergiliyor.";
   const macdComment = (m && m.histogram > 0) ? "MACD pozitif bölgede yeşil histogram üretiyor." : "MACD negatif bölgede zayıflama gösteriyor.";
 
-  descEl.textContent = `${asset.name} (${asset.symbol}) fiyatı $${formatPrice(cur)} seviyesinde, ${emaState} hareket ediyor. ${rsiComment} ${macdComment} Yakın destek $${formatPrice(sup)} ve direnç $${formatPrice(res)} aralığı sıkışma oluşturuyor.`;
+  const topConfluence = an.confluences && an.confluences[0]
+    ? ` Ek teyit: ${an.confluences[0].tag}.`
+    : "";
+  descEl.textContent = `${asset.name} (${asset.symbol}) fiyatı $${formatPrice(cur)} seviyesinde, ${emaState} hareket ediyor. ${rsiComment} ${macdComment} Yakın destek $${formatPrice(sup)} ve direnç $${formatPrice(res)} aralığı sıkışma oluşturuyor.${topConfluence}`;
 
   // Seçili vade için anlık projeksiyon ve grafikleri güncelle
   generateInstantForecast(state.selectedForecastHorizon || "30m", false);
@@ -4616,6 +4754,10 @@ $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
    const ss = String(totalSeconds % 60).padStart(2, "0");
    const str = active ? `${mm}:${ss}` : "00:00";
 
+   const badge = $("#forecastCountdownBadge");
+   if(badge) badge.textContent = active ? `⏱ 5DK: ${str}` : "⏱ 5DK: YENİ TAHMİN AÇILIYOR...";
+
+   // Eski/alternatif rozet id'leri (varsa) geriye dönük uyumluluk için hâlâ güncellenir.
    const c1 = $("#predCountdownBadge");
    const c2 = $("#forecastIntervalBadge");
    if(c1) c1.textContent = active ? `TAHMİN KALAN: ${str}` : "YENİ TAHMİN AÇILIYOR...";
@@ -5014,9 +5156,9 @@ function renderAssetPicker(filter=""){
 function renderPickerItem(a){
   const s = pickerStatusFor(a);
   const isF = state.favorites.has(a.id);
-  return `<div class="asset-item ${a.id === state.selectedAsset.id ? 'selected' : ''}">
+  return `<div class="asset-item ${a.id === state.selectedAsset.id ? 'selected' : ''}" onclick="selectAsset('${a.id}')" style="cursor:pointer">
     <div class="item-icon">${a.icon}</div>
-    <div class="item-info" onclick="selectAsset('${a.id}')" style="cursor:pointer">
+    <div class="item-info">
       <div class="item-top"><span class="item-symbol">${a.symbol}</span>${a.badge ? `<span class="badge">${a.badge}</span>` : ""}</div>
       <div class="item-name">${a.name}</div>
     </div>
@@ -5395,7 +5537,7 @@ async function requestGeminiAnalysis(){
 
   const asset = state.selectedAsset;
   const quote = state.data?.quote;
-  const ind = state.data?.indicators || {};
+  const ind = state.data?.analysis || {};
   const currentPrice = quote?.price || 0;
   const tf = state.timeframe;
 
@@ -5431,6 +5573,7 @@ EMA50: ${ind.ema50 ? formatPrice(ind.ema50) : "—"}
 EMA200: ${ind.ema200 ? formatPrice(ind.ema200) : "—"}
 Destek: ${ind.support ? formatPrice(ind.support) : "—"}
 Direnç: ${ind.resistance ? formatPrice(ind.resistance) : "—"}
+Ek Teknik Teyitler (Mum Formasyonu/ICT/CRT+TBS): ${(ind.confluences||[]).map(c=>c.name).join(", ") || "—"}
 Son Mumlar: ${candleSummary}
 
 Yanıtını Türkçe ver ve mutlaka şu 3 bölümü içersin:
@@ -5752,6 +5895,7 @@ setInterval(() => {
 
   // Her saniye aktif tahminlerin 5dk geri sayımını güncelle
   updatePredictionTableCountdowns();
+  updatePredictionCycleCountdown();
 
   // 5 dakikası dolan veya hedefe/stopa ulaşan tahminleri kontrol et
   const curPrice = state.data?.quote?.price || 0;
