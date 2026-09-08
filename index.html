@@ -474,6 +474,15 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
 .panel-tab-btn{flex:1; padding:12px 10px; background:none; border:none; border-bottom:2px solid transparent; color:#6e7c91; font-size:11px; font-weight:800; transition:.2s;}
 .panel-tab-btn.active{color:#4ade80; border-color:#4ade80; background:rgba(74,222,128,.04);}
 .panel-tab-content{padding:14px; overflow-y:auto; flex:1;}
+.mp-toggle-switch{position:relative; display:inline-block; width:40px; height:22px; flex-shrink:0;}
+.mp-toggle-switch input{opacity:0; width:0; height:0;}
+.mp-toggle-slider{position:absolute; cursor:pointer; inset:0; background:#28374d; border-radius:999px; transition:.2s;}
+.mp-toggle-slider::before{content:""; position:absolute; height:16px; width:16px; left:3px; bottom:3px; background:#cbd5e1; border-radius:50%; transition:.2s;}
+.mp-toggle-switch input:checked + .mp-toggle-slider{background:#16a34a;}
+.mp-toggle-switch input:checked + .mp-toggle-slider::before{transform:translateX(18px); background:#f0fdf4;}
+.perf-table{width:100%; border-collapse:collapse; font-size:10.5px;}
+.perf-table th{text-align:left; color:#64748b; font-size:8.5px; font-weight:800; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid #233146; white-space:nowrap;}
+.perf-table td{padding:6px 8px; border-bottom:1px solid #182232; color:#cbd5e1; white-space:nowrap;}
 
 .stat-cards{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px;}
 .stat-card{background:#101622; border:1px solid #1c2636; border-radius:10px; padding:8px 10px;}
@@ -537,10 +546,82 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
   .chart-wrap{height:240px;}
   .metric{padding:10px;}
 }
+
+
+/* ACCESS GATE / DISCLAIMER */
+body.access-locked > .app{display:none!important;}
+.access-gate{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 15%,rgba(61,130,255,.12),transparent 38%),#070b11;color:#edf2f7;overflow:auto;}
+.access-gate.hidden{display:none;}
+.access-card{width:min(430px,100%);background:#0e141d;border:1px solid #263346;border-radius:20px;padding:26px;box-shadow:0 24px 80px rgba(0,0,0,.45);}
+.access-brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+.access-brand-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#182638;border:1px solid #30445d;font-size:20px;font-weight:900;}
+.access-brand-name{font-size:14px;font-weight:900;letter-spacing:1.5px;}
+.access-title{font-size:23px;font-weight:900;margin:0 0 7px;}
+.access-subtitle{font-size:11px;line-height:1.6;color:#8795a8;margin:0 0 20px;}
+.access-label{display:block;font-size:10px;font-weight:850;color:#8e9caf;margin:0 0 7px;}
+.access-input{width:100%;box-sizing:border-box;background:#090e15;border:1px solid #2a3749;border-radius:11px;padding:13px 14px;color:#fff;outline:none;font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.access-input:focus{border-color:#5d8cff;box-shadow:0 0 0 3px rgba(93,140,255,.10);}
+.access-btn{width:100%;margin-top:11px;border:0;border-radius:11px;padding:13px;background:#e8eef8;color:#07101b;font-size:12px;font-weight:900;cursor:pointer;}
+.access-btn:hover{filter:brightness(1.04);}
+.access-error{min-height:17px;margin-top:8px;color:#ff7f8d;font-size:10px;font-weight:800;}
+.access-note{margin-top:17px;padding-top:14px;border-top:1px solid #202b3b;color:#68778b;font-size:9px;line-height:1.55;}
+.disclaimer-modal{position:fixed;inset:0;z-index:10001;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,5,9,.82);backdrop-filter:blur(8px);}
+.disclaimer-modal.open{display:flex;}
+.disclaimer-card{width:min(620px,100%);max-height:min(760px,90vh);overflow:auto;background:#0e141d;border:1px solid #2a3749;border-radius:20px;padding:25px;box-shadow:0 30px 100px rgba(0,0,0,.55);}
+.disclaimer-card h2{margin:0 0 9px;font-size:20px;}
+.disclaimer-card .lead{color:#9aa7b8;font-size:11px;line-height:1.65;margin:0 0 16px;}
+.disclaimer-box{background:#0a0f16;border:1px solid #222e3e;border-radius:13px;padding:15px;font-size:10px;line-height:1.7;color:#cbd4df;}
+.disclaimer-box strong{color:#fff;}
+.disclaimer-check{display:flex;gap:10px;align-items:flex-start;margin-top:16px;color:#aab5c3;font-size:10px;line-height:1.5;cursor:pointer;}
+.disclaimer-check input{margin-top:2px;accent-color:#5d8cff;}
+.disclaimer-actions{display:flex;gap:9px;margin-top:18px;}
+.disclaimer-actions button{flex:1;border:0;border-radius:10px;padding:12px;font-size:11px;font-weight:900;cursor:pointer;}
+.disclaimer-continue{background:#e8eef8;color:#07101b;}
+.disclaimer-continue:disabled{opacity:.4;cursor:not-allowed;}
+.disclaimer-logout{background:#18212d;color:#b9c4d1;border:1px solid #2b394b!important;}
+.access-user{display:none;margin:-8px 0 18px;padding:8px 10px;border:1px solid #243146;border-radius:9px;color:#8f9caf;font-size:9px;}
+
 </style>
 </head>
 
-<body>
+<body class="access-locked">
+
+
+<div id="accessGate" class="access-gate">
+  <div class="access-card">
+    <div class="access-brand">
+      <div class="access-brand-mark">↗</div>
+      <div class="access-brand-name">MARKETPULSE</div>
+    </div>
+    <h1 class="access-title">Kullanıcı Girişi</h1>
+    <p class="access-subtitle">Devam etmek için size verilen erişim anahtarını girin.</p>
+    <div id="accessUser" class="access-user"></div>
+    <label class="access-label" for="accessCode">Erişim anahtarı</label>
+    <input id="accessCode" class="access-input" type="text" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="MP-XXXXXX-XXXX">
+    <button id="accessLoginBtn" class="access-btn" type="button">GİRİŞ YAP</button>
+    <div id="accessError" class="access-error" role="alert"></div>
+    <div class="access-note">Bu erişim ekranı uygulamanın kullanımını sınırlamak amacıyla eklenmiştir. Gerçek kimlik doğrulama veya sunucu tarafı güvenlik sağlamaz.</div>
+  </div>
+</div>
+
+<div id="disclaimerModal" class="disclaimer-modal" aria-hidden="true">
+  <div class="disclaimer-card" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
+    <h2 id="disclaimerTitle">Kullanım ve sorumluluk bildirimi</h2>
+    <p class="lead">Uygulamayı ilk kullanımınızdan önce aşağıdaki bildirimi okuyup onaylamanız gerekir.</p>
+    <div class="disclaimer-box">
+      <strong>Önemli:</strong> MarketPulse; piyasa verilerini işleyen, teknik analiz göstergeleri kullanan ve geleceğe yönelik <strong>otomatik tahminler/olasılık hesaplamaları</strong> üreten bir bilgi ve analiz aracıdır.<br><br>
+      Uygulamadaki “AL”, “SAT”, yön, hedef, stop, güven skoru ve benzeri ifadeler <strong>yatırım tavsiyesi, yatırım danışmanlığı, portföy yönetimi veya kişiye özel finansal tavsiye değildir.</strong> Herhangi bir finansal aracın alınması, satılması veya elde tutulması yönünde garanti, taahhüt ya da kesinlik ifade etmez.<br><br>
+      Tahminler geçmiş ve anlık piyasa verileri ile algoritmik/istatistiksel teknik analizlere dayanır ve <strong>yanlış olabilir.</strong> Geçmiş performans gelecekteki sonuçların göstergesi değildir. Finansal piyasalarda kayıp riski vardır. Kullanıcı, kendi yatırım kararlarından ve bu kararların sonuçlarından kendisi sorumludur.<br><br>
+      Bu uygulamadaki bilgiler eğitimsel/teknik analiz ve piyasa gözlemi amacıyla sunulmaktadır. <strong>Yatırım kararı vermeden önce yetkili bir yatırım kuruluşundan veya lisanslı bir uzmandan bağımsız profesyonel görüş alınması önerilir.</strong>
+    </div>
+    <label class="disclaimer-check"><input id="disclaimerAccept" type="checkbox"> <span>Bu bildirimi okudum; uygulamadaki analiz ve tahminleri yatırım tavsiyesi olarak değerlendirmeyeceğimi ve kendi kararlarımın sorumluluğunun bana ait olduğunu anladım.</span></label>
+    <div class="disclaimer-actions">
+      <button id="disclaimerExitBtn" class="disclaimer-logout" type="button">ÇIKIŞ</button>
+      <button id="disclaimerContinueBtn" class="disclaimer-continue" type="button" disabled>OKUDUM, DEVAM ET</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
 <header class="header">
@@ -739,15 +820,19 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
   <div class="panel-head">
     <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
       <span style="color:#38bdf8;">🎯</span>
-      <span><span id="predActiveAssetTitle" style="color:#38bdf8; font-weight:900;">BTCUSDT</span> 5dk Trend Tahminleri</span>
-      <span class="pred-schedule-badge">⏱ 5 DK DÖNGÜSÜ</span>
+      <span><span id="predActiveAssetTitle" style="color:#38bdf8; font-weight:900;">BTCUSDT</span> Trend Tahminleri</span>
+      <span class="pred-schedule-badge">⏱ 5 DK + 15 DK ÇİFT DÖNGÜ</span>
     </div>
     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-      <button id="scan5MinPredsBtn" class="pred-action-btn scan" type="button" title="Anlık Fiyattan Yeni 5dk Trend Tahmini Yap">⚡ Yeni 5dk Tahmin</button>
+      <button id="scan5MinPredsBtn" class="pred-action-btn scan" type="button" title="Anlık fiyattan aynı anda 5dk ve 15dk trend tahmini oluştur">⚡ Yeni 5dk + 15dk</button>
       <button id="refreshHistoricalPredsBtn" class="pred-action-btn scan" type="button" title="Geçmiş 5dk Trend Tahminlerini Mum Verilerinden Listele" style="background:#1e293b; border-color:#334155; color:#cbd5e1;">🔄 Geçmiş Tahminler</button>
       <button id="exportCsvMainBtn" class="pred-action-btn csv" type="button" title="Tahminleri CSV Olarak İndir">📥 CSV</button>
       <button id="clearPredsMainBtn" class="pred-action-btn clear" type="button" title="Bu Varlığın Tahminlerini Temizle">🗑 Temizle</button>
     </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; padding:7px 10px 0;">
+    <span id="predCountdownBadge" class="pred-schedule-badge">⏱ 5DK: 00:00 · 15DK: 00:00</span>
+    <span id="forecastIntervalBadge" class="pred-schedule-badge">5DK + 15DK bağımsız döngü</span>
   </div>
 
   <!-- Performance Statistics Cards (Seçili Varlık) -->
@@ -818,6 +903,7 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
     <div class="horizon-pills" id="forecastHorizonPills">
       <button class="horizon-pill" data-horizon="5m">5dk</button>
       <button class="horizon-pill" data-horizon="10m">10dk</button>
+      <button class="horizon-pill" data-horizon="15m">15dk</button>
       <button class="horizon-pill" data-horizon="20m">20dk</button>
       <button class="horizon-pill active" data-horizon="30m">30dk</button>
       <button class="horizon-pill" data-horizon="1h">1 saat</button>
@@ -1008,6 +1094,7 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
   </div>
   <div class="panel-tabs">
     <button class="panel-tab-btn active" data-tab="predictions">Tahminler & Kayıt Tablosu</button>
+    <button class="panel-tab-btn" data-tab="performance">Performans Hafızası</button>
     <button class="panel-tab-btn" data-tab="calculator">Kar/Zarar Hesapla</button>
   </div>
   
@@ -1076,6 +1163,8 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
       </table>
     </div>
   </div>
+
+  <div id="tabPerformance" class="panel-tab-content" style="display:none;"></div>
 
   <div id="tabCalculator" class="panel-tab-content" style="display:none;">
     <div class="calc-form">
@@ -1233,6 +1322,26 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
     </div>
 
     <div class="settings-section"><div class="settings-section-title"><span>📊</span> Prediction Engine 2.0</div><div class="settings-section-desc">Gerçekleşen 5dk tahminleri için Profit Factor, Expectancy ve Max Drawdown metrikleri.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:6px;"><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">PROFIT FACTOR</div><strong id="predMetricPF" style="font-size:12px;">0.00</strong></div><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">EXPECTANCY</div><strong id="predMetricExp" style="font-size:12px;">0.00%</strong></div><div style="padding:8px;border:1px solid #233146;border-radius:8px;background:#0b1119;"><div style="font-size:8px;color:#718096;">MAX DD</div><strong id="predMetricDD" style="font-size:12px;">0.00%</strong></div></div><button id="runBacktestBtn" type="button" style="margin-top:8px;padding:8px 10px;background:#111b2a;border:1px solid #29405d;border-radius:8px;color:#93c5fd;font-size:10px;font-weight:800;">Geçmiş 5m veride Backtest Çalıştır</button></div>
+
+    <!-- PERFORMANS AĞIRLIKLARI / ÖĞRENME SİSTEMİ -->
+    <div class="settings-section">
+      <div class="settings-section-title">
+        <span>🧠</span> Performans Ağırlıkları (Öğrenme Sistemi)
+      </div>
+      <div class="settings-section-desc">
+        Açık olduğunda, hangi tekniğin (EMA/RSI/MACD/Hacim/Trend Çizgisi/Mum/FVG/CRT+TBS) geçmişte ne kadar isabetli olduğu öğrenilip nihai tahminin güven değerine <strong style="color:#cbd5e1;">sınırlı ve kontrollü</strong> şekilde yansıtılır. Kapalı olduğunda sistem varsayılan (nötr) ağırlıklarla çalışır — <strong style="color:#cbd5e1;">tahmin kayıtları ve performans istatistikleri silinmez.</strong>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding:9px 12px; background:#0b1119; border:1px solid #233146; border-radius:8px;">
+        <span style="font-size:10.5px; font-weight:800; color:#e2e8f0;">Öğrenme Sistemi</span>
+        <label class="mp-toggle-switch">
+          <input type="checkbox" id="learningToggleSwitch">
+          <span class="mp-toggle-slider"></span>
+        </label>
+      </div>
+      <button id="resetWeightsBtn" type="button" style="margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 12px; background:#182232; border:1px solid #28374d; border-radius:8px; color:#cbd5e1; font-size:10.5px; font-weight:750;">
+        🔄 Ağırlıkları Varsayılana Döndür
+      </button>
+    </div>
 
     <!-- GEMINI AI ENTEGRASYON BİLGİSİ -->
     <div class="settings-section">
@@ -1498,9 +1607,10 @@ function markDataQuality(candles){
 }
 
 function normalizePredictionRecord(p){
-  if(!p||!p.assetId||!p.createdAt||!Number(p.entryPrice)) return null; const out={...p}; out.timeframe="5m";
+  if(!p||!p.assetId||!p.createdAt||!Number(p.entryPrice)) return null; const out={...p}; out.timeframe = p.timeframe === "15m" ? "15m" : "5m";
   out.status=["ACTIVE","SUCCESS","FAILED","NEUTRAL"].includes(out.status)?out.status:"NEUTRAL"; out.createdAt=Number(out.createdAt);
-  out.expiresAt=Number(out.expiresAt)||out.createdAt+IMPROVEMENT_CONFIG.prediction.defaultHorizonMs; out.entryPrice=Number(out.entryPrice);
+  const horizonMs = out.timeframe === "15m" ? 15*60*1000 : 5*60*1000;
+  out.expiresAt=Number(out.expiresAt)||out.createdAt+horizonMs; out.entryPrice=Number(out.entryPrice);
   out.targetPrice=Number(out.targetPrice)||out.entryPrice; out.stopPrice=Number(out.stopPrice)||out.entryPrice; out.lastCheckedPrice=Number(out.lastCheckedPrice??out.entryPrice);
   out.netPnl=Number(out.netPnl)||0; out.mfe=Number(out.mfe)||0; out.mae=Number(out.mae)||0; return out;
 }
@@ -2477,6 +2587,241 @@ function calculateAnalysis(candles){
 }
 
 /* ============================================================
+   PERFORMANCE MEMORY & AĞIRLIK ÖĞRENME KATMANI
+   Amaç: mevcut analiz motorunu / tekniklerini DEĞİŞTİRMEDEN, geçmişte
+   hangi tekniğin hangi koşulda daha güvenilir olduğunu öğrenip
+   yalnızca "bu sinyale ne kadar güvenmeliyim" katsayısını ayarlamak.
+   Teknik tanımları, eşikleri, strateji kodu SABİT kalır.
+============================================================ */
+const TECHNIQUES = [
+  {key:"ema",         label:"EMA"},
+  {key:"rsi",          label:"RSI"},
+  {key:"macd",         label:"MACD"},
+  {key:"volume",       label:"Hacim"},
+  {key:"structure",    label:"Trend Çizgisi / Yapı"},
+  {key:"candlestick",  label:"Mum Formasyonu"},
+  {key:"fvg",          label:"ICT FVG"},
+  {key:"crt",          label:"CRT+TBS"}
+];
+
+// Her teknik için AYRI yön (+1/-1/0) ve güven (0-100) üretir.
+// Bu, mevcut ana skoru (calculateAnalysis) DEĞİŞTİRMEZ; sadece onun
+// üzerine kurulu, gözlemlenebilir bir "teknik oyları" katmanıdır.
+function computeTechniqueVotes(analysis){
+  const votes = {};
+
+  if(analysis.ema20 != null && analysis.ema50 != null){
+    const dir = analysis.ema20 > analysis.ema50 ? 1 : analysis.ema20 < analysis.ema50 ? -1 : 0;
+    votes.ema = {dir, confidence: dir !== 0 ? 62 : 50};
+  } else votes.ema = {dir:0, confidence:50};
+
+  if(analysis.rsi != null){
+    const r = analysis.rsi;
+    let dir = 0, conf = 50;
+    if(r >= 70){ dir = -1; conf = 68; }
+    else if(r <= 30){ dir = 1; conf = 68; }
+    else if(r > 55){ dir = 1; conf = 55; }
+    else if(r < 45){ dir = -1; conf = 55; }
+    votes.rsi = {dir, confidence:conf};
+  } else votes.rsi = {dir:0, confidence:50};
+
+  if(analysis.macd && analysis.macd.histogram != null){
+    const dir = analysis.macd.histogram > 0 ? 1 : analysis.macd.histogram < 0 ? -1 : 0;
+    votes.macd = {dir, confidence: dir !== 0 ? 60 : 50};
+  } else votes.macd = {dir:0, confidence:50};
+
+  if(analysis.volume && analysis.volume.ratio != null){
+    const v = analysis.volume.ratio;
+    const dir = v >= 1.35 ? (analysis.score >= 50 ? 1 : -1) : 0;
+    votes.volume = {dir, confidence: dir !== 0 ? 58 : 50};
+  } else votes.volume = {dir:0, confidence:50};
+
+  const structure = analysis.techniqueSignals?.structure;
+  votes.structure = structure ? {dir:structure.bias, confidence:clamp(50 + structure.weight*3,0,100)} : {dir:0, confidence:50};
+
+  const candlestick = analysis.techniqueSignals?.candlestick;
+  votes.candlestick = (candlestick && candlestick.bias !== 0) ? {dir:candlestick.bias, confidence:clamp(50 + candlestick.weight*3,0,100)} : {dir:0, confidence:50};
+
+  const fvg = analysis.techniqueSignals?.fvg;
+  votes.fvg = fvg ? {dir:fvg.bias, confidence:clamp(50 + fvg.weight*3,0,100)} : {dir:0, confidence:50};
+
+  const crt = analysis.techniqueSignals?.crt;
+  votes.crt = crt ? {dir:crt.bias, confidence:clamp(50 + crt.weight*3,0,100)} : {dir:0, confidence:50};
+
+  Object.values(votes).forEach(v => { v.confidence = Math.round(v.confidence); });
+  return votes;
+}
+
+// Ağırlıklı teknikler arasındaki fikir birliğinin yönünü ve gücünü (0..1) döndürür.
+function calculateWeightedConsensus(votes, weights){
+  let sumW = 0, sumWV = 0;
+  TECHNIQUES.forEach(t => {
+    const v = votes[t.key]; if(!v || v.dir === 0) return;
+    const w = (weights && Number.isFinite(weights[t.key])) ? weights[t.key] : 1;
+    sumW += w;
+    sumWV += w * v.dir * (v.confidence/100);
+  });
+  if(sumW === 0) return {consensusDir:0, consensusStrength:0};
+  const consensusDir = sumWV >= 0 ? 1 : -1;
+  const consensusStrength = clamp(Math.abs(sumWV/sumW), 0, 1);
+  return {consensusDir, consensusStrength};
+}
+
+const PerfMemory = (() => {
+  const KEY_WEIGHTS = "marketpulse.perf_weights";
+  const KEY_ENABLED = "marketpulse.perf_learning_enabled";
+  const WEIGHT_MIN = 0.70, WEIGHT_MAX = 1.30, WEIGHT_NEUTRAL = 1.00;
+
+  function defaultWeights(){
+    const w = {}; TECHNIQUES.forEach(t => w[t.key] = WEIGHT_NEUTRAL); return w;
+  }
+
+  function loadWeights(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(KEY_WEIGHTS));
+      if(raw && typeof raw === "object"){
+        const w = defaultWeights();
+        TECHNIQUES.forEach(t => { if(Number.isFinite(raw[t.key])) w[t.key] = clamp(raw[t.key], WEIGHT_MIN, WEIGHT_MAX); });
+        return w;
+      }
+    }catch(e){}
+    return defaultWeights();
+  }
+
+  function saveWeights(w){
+    try{ localStorage.setItem(KEY_WEIGHTS, JSON.stringify(w)); }catch(e){}
+  }
+
+  function isLearningEnabled(){
+    const v = localStorage.getItem(KEY_ENABLED);
+    return v === null ? true : v === "1";
+  }
+
+  function setLearningEnabled(on){
+    try{ localStorage.setItem(KEY_ENABLED, on ? "1" : "0"); }catch(e){}
+  }
+
+  // Ağırlıkları 1.00'a döndürür — tahmin geçmişi ve istatistikler SİLİNMEZ.
+  function resetWeights(){
+    saveWeights(defaultWeights());
+  }
+
+  // 0-9 örnek: öğrenme yok · 10-29: düşük etki · 30-99: normal · 100+: güvenilir
+  function sampleGate(n){
+    if(n < 10) return 0;
+    if(n < 30) return 0.35;
+    if(n < 100) return 0.7;
+    return 1.0;
+  }
+
+  // Kapanmış tahminlerdeki her tekniğin GERÇEKLEŞEN başarı oranını hesaplar.
+  function computeTechniqueStats(predictions = state.predictions){
+    const closed = predictions.filter(p => p.status === "SUCCESS" || p.status === "FAILED" || p.status === "NEUTRAL");
+    const stats = {};
+    TECHNIQUES.forEach(t => stats[t.key] = {wins:0, losses:0, neutral:0, total:0});
+    closed.forEach(p => {
+      const res = p.techniqueResults; if(!res) return;
+      TECHNIQUES.forEach(t => {
+        const r = res[t.key]; if(!r) return;
+        stats[t.key].total++;
+        if(r === "WIN") stats[t.key].wins++;
+        else if(r === "LOSS") stats[t.key].losses++;
+        else stats[t.key].neutral++;
+      });
+    });
+    TECHNIQUES.forEach(t => {
+      const s = stats[t.key];
+      s.winRate = (s.wins + s.losses) ? (s.wins/(s.wins+s.losses))*100 : null;
+    });
+    return stats;
+  }
+
+  function computeRegimeStats(predictions = state.predictions){
+    const closed = predictions.filter(p => p.status === "SUCCESS" || p.status === "FAILED" || p.status === "NEUTRAL");
+    const stats = {};
+    closed.forEach(p => {
+      const regime = p.marketRegime || "BELİRSİZ";
+      if(!stats[regime]) stats[regime] = {wins:0, losses:0, neutral:0, total:0};
+      stats[regime].total++;
+      if(p.status === "SUCCESS") stats[regime].wins++;
+      else if(p.status === "FAILED") stats[regime].losses++;
+      else stats[regime].neutral++;
+    });
+    Object.values(stats).forEach(s => { s.winRate = (s.wins+s.losses) ? (s.wins/(s.wins+s.losses))*100 : null; });
+    return stats;
+  }
+
+  function computeHourStats(predictions = state.predictions){
+    const closed = predictions.filter(p => p.status === "SUCCESS" || p.status === "FAILED" || p.status === "NEUTRAL");
+    const stats = {};
+    for(let h=0; h<24; h++) stats[h] = {wins:0, losses:0, neutral:0, total:0};
+    closed.forEach(p => {
+      const h = Number.isFinite(p.hour) ? p.hour : new Date(p.createdAt).getHours();
+      if(!stats[h]) stats[h] = {wins:0, losses:0, neutral:0, total:0};
+      stats[h].total++;
+      if(p.status === "SUCCESS") stats[h].wins++;
+      else if(p.status === "FAILED") stats[h].losses++;
+      else stats[h].neutral++;
+    });
+    Object.values(stats).forEach(s => { s.winRate = (s.wins+s.losses) ? (s.wins/(s.wins+s.losses))*100 : null; });
+    return stats;
+  }
+
+  // Yalnızca AKTİF ve ANLAMLI 2-4 tekniklik kombinasyonları takip eder
+  // (kombinasyon patlamasını önlemek için).
+  function getActiveComboKey(p){
+    const dirNum = p.direction === "AL" ? 1 : -1;
+    const active = TECHNIQUES.filter(t => p.techniques?.[t.key]?.dir === dirNum).map(t => t.key);
+    if(active.length < 2) return null;
+    return active.slice(0,4).sort().join(" + ");
+  }
+
+  function computeComboStats(predictions = state.predictions){
+    const closed = predictions.filter(p => p.status === "SUCCESS" || p.status === "FAILED" || p.status === "NEUTRAL");
+    const stats = {};
+    closed.forEach(p => {
+      const key = getActiveComboKey(p); if(!key) return;
+      if(!stats[key]) stats[key] = {wins:0, losses:0, neutral:0, total:0};
+      stats[key].total++;
+      if(p.status === "SUCCESS") stats[key].wins++;
+      else if(p.status === "FAILED") stats[key].losses++;
+      else stats[key].neutral++;
+    });
+    Object.values(stats).forEach(s => { s.winRate = (s.wins+s.losses) ? (s.wins/(s.wins+s.losses))*100 : null; });
+    return Object.entries(stats).sort((a,b) => b[1].total - a[1].total).slice(0,8);
+  }
+
+  // Gerçekleşen başarı oranına göre ağırlıkları KONTROLLÜ günceller.
+  // Teknik tanımını/eşiğini asla değiştirmez — yalnızca güven katsayısını kaydırır.
+  function updateWeightsFromStats(){
+    if(!isLearningEnabled()) return;
+    const stats = computeTechniqueStats();
+    const w = {...(state.perfWeights || loadWeights())};
+    TECHNIQUES.forEach(t => {
+      const s = stats[t.key];
+      const n = s.wins + s.losses;
+      const gate = sampleGate(n);
+      if(gate <= 0 || s.winRate == null) return; // örneklem yetersiz → ağırlık sabit kalır
+      const targetWeight = 1 + clamp((s.winRate-50)/50, -1, 1) * 0.30; // 0.70 .. 1.30
+      const blended = (w[t.key] ?? 1) * (1-gate*0.15) + targetWeight * (gate*0.15);
+      w[t.key] = clamp(blended, WEIGHT_MIN, WEIGHT_MAX);
+    });
+    state.perfWeights = w;
+    saveWeights(w);
+  }
+
+  return {
+    WEIGHT_MIN, WEIGHT_MAX, WEIGHT_NEUTRAL,
+    defaultWeights, loadWeights, saveWeights,
+    isLearningEnabled, setLearningEnabled, resetWeights, sampleGate,
+    computeTechniqueStats, computeRegimeStats, computeHourStats, computeComboStats,
+    getActiveComboKey, updateWeightsFromStats
+  };
+})();
+
+state.perfWeights = PerfMemory.loadWeights();
+
+/* ============================================================
    PREDICTION TRACKER ENGINE (MADDE 3)
 ============================================================ */
 function buildStrategyLabel(analysis){
@@ -2485,32 +2830,125 @@ function buildStrategyLabel(analysis){
   return tags.length ? `${base} + ${tags.join(" + ")}` : base;
 }
 
+// Tahmin AÇILDIĞI andaki gerekçeyi kilitler; sonuç geldikten sonra bu metin
+// asla değiştirilmez (MADDE 12 — açıklama ile sonuç birbirine karışmaz).
+function buildOpenNarrative(direction, techniqueVotes){
+  const dirNum = direction === "AL" ? 1 : -1;
+  const supporting = TECHNIQUES.filter(t => techniqueVotes[t.key]?.dir === dirNum).map(t => t.label);
+  const opposing = TECHNIQUES.filter(t => techniqueVotes[t.key]?.dir === -dirNum).map(t => t.label);
+  let text = supporting.length
+    ? `Tahmin açılışında ${supporting.join(", ")} ${direction==="AL"?"yukarı":"aşağı"} yönünü destekliyordu.`
+    : "Tahmin açılışında teknikler arasında net bir çoğunluk yoktu.";
+  if(opposing.length) text += ` ${opposing.join(", ")} ters yöndeydi.`;
+  return text;
+}
+
+function getActivePrediction(assetId, timeframe){
+  if(!assetId) return null;
+  const tf = timeframe === "15m" ? "15m" : "5m";
+  const now = Date.now();
+  return state.predictions.find(p =>
+    p && p.assetId === assetId && p.timeframe === tf && p.status === "ACTIVE" &&
+    Number.isFinite(Number(p.entryPrice)) && Number(p.expiresAt || 0) > now
+  ) || null;
+}
+
 function checkAndGeneratePrediction(asset,tf,candles,analysis){
-  if(tf!=="5m"||!candles||candles.length<IMPROVEMENT_CONFIG.data.minCandles||!analysis||analysis.current==null) return null;
+  if(!["5m","15m"].includes(tf)) return null;
+  if(!candles || candles.length < IMPROVEMENT_CONFIG.data.minCandles){
+    console.warn(`[${asset?.symbol||"?"}] ${tf} tahmin üretimi atlandı: yalnızca ${candles?.length||0}/${IMPROVEMENT_CONFIG.data.minCandles} geçerli mum var.`);
+    return null;
+  }
+  if(!analysis || !Number.isFinite(Number(analysis.current))){
+    console.warn(`[${asset?.symbol||"?"}] ${tf} tahmin üretimi atlandı: analiz motoru geçerli current üretemedi.`);
+    return null;
+  }
   const price=Number(analysis.current), score=Number(analysis.score)||50, confidence=calculateSignalConfidence(analysis), dist=Math.abs(score-50);
   const up=[analysis.ema20>analysis.ema50,price>=analysis.ema20,analysis.macd?.macd>analysis.macd?.signal,score>=62].filter(Boolean).length;
   const down=[analysis.ema20<analysis.ema50,price<=analysis.ema20,analysis.macd?.macd<analysis.macd?.signal,score<=38].filter(Boolean).length;
-  const direction=score>=58&&up>=2?"AL":score<=42&&down>=2?"SAT":dist>=IMPROVEMENT_CONFIG.prediction.minScoreDistance&&confidence>=IMPROVEMENT_CONFIG.prediction.minConfidence?(score>50?"AL":"SAT"):null;
-  if(!direction||getActivePrediction(asset.id)||(IMPROVEMENT_CONFIG.prediction.requireVolumeConfirmation&&!analysis.volume?.confirmed)) return null;
-  const horizonMs=5*60*1000, levels=calculatePredictionLevels(price,analysis,direction,horizonMs), now=Date.now();
-  const n={id:`#${String((state.predictions.reduce((m,p)=>Math.max(m,parseInt(String(p.id||"").replace(/\D/g,""),10)||0),0)+1)).padStart(4,"0")}`,assetId:asset.id,symbol:asset.symbol,timeframe:"5m",direction,trendType:direction==="AL"?"🟢 YÜKSELEN SİNYAL":"🔴 DÜŞEN SİNYAL",strategy:buildStrategyLabel(analysis),entryPrice:price,targetPrice:levels.targetPrice,stopPrice:levels.stopPrice,status:"ACTIVE",createdAt:now,expiresAt:now+horizonMs,lastCheckedPrice:price,exitPrice:null,netPnl:0,closeReason:null,resultTime:null,signalScore:score,confidence,atr:Number(analysis.atr)||null,marketRegime:analysis.marketRegime||"BELİRSİZ",volumeRatio:Number(analysis.volume?.ratio)||null,modelVersion:"MP-2.1-5M",strategyVersion:"REGIME-EMA-MACD-RSI-ICT-CRT-v1",mfe:0,mae:0};
-  state.predictions.unshift(n); if(state.predictions.length>IMPROVEMENT_CONFIG.prediction.maxHistory) state.predictions.length=IMPROVEMENT_CONFIG.prediction.maxHistory; savePredictions(); updatePredictionUI(); renderPredictionList(); renderComprehensivePredTable(); showToast(`Yeni 5dk tahmin: ${n.id} ${asset.symbol} [${direction}] · Güven %${confidence}`); return n;
+  let direction=score>=58&&up>=2?"AL":score<=42&&down>=2?"SAT":dist>=IMPROVEMENT_CONFIG.prediction.minScoreDistance&&confidence>=IMPROVEMENT_CONFIG.prediction.minConfidence?(score>50?"AL":"SAT"):null;
+  // Geçerli 5m veri varken döngünün boş kalmasını önle. Güçlü sinyal yoksa mevcut skorun tarafında koşullu tahmin açılır.
+  if(!direction) direction = score >= 50 ? "AL" : "SAT";
+  // Süresi dolmuş ACTIVE kayıtlar yeni tahmini engellemez; gerçek kapanış evaluatePredictions tarafından yapılır.
+  if(getActivePrediction(asset.id, tf)||(IMPROVEMENT_CONFIG.prediction.requireVolumeConfirmation&&!analysis.volume?.confirmed)) return null;
+  const horizonMs=tf === "15m" ? 15*60*1000 : 5*60*1000, levels=calculatePredictionLevels(price,analysis,direction,horizonMs), now=Date.now();
+
+  // AĞIRLIK MOTORU: yön ("direction") ANA STRATEJİ tarafından zaten belirlendi ve sabittir.
+  // Öğrenilmiş teknik ağırlıkları yalnızca NİHAİ TAHMİN'in güven değerini, sınırlı (±8 puan)
+  // ve kontrollü şekilde ayarlar — teknik tanımlarını veya yönü asla değiştirmez.
+  const techniqueVotes = computeTechniqueVotes(analysis);
+  const weightsSnapshot = {...state.perfWeights};
+  const consensus = calculateWeightedConsensus(techniqueVotes, weightsSnapshot);
+  const dirNum = direction === "AL" ? 1 : -1;
+  const agreement = consensus.consensusDir === dirNum ? consensus.consensusStrength : -consensus.consensusStrength;
+  const learningEnabledAtOpen = PerfMemory.isLearningEnabled();
+  const weightedAdj = learningEnabledAtOpen ? Math.round(agreement * 8) : 0;
+  const finalConfidence = clamp(confidence + weightedAdj, 25, 98);
+  const openDate = new Date(now);
+
+  const n={id:`#${String((state.predictions.reduce((m,p)=>Math.max(m,parseInt(String(p.id||"").replace(/\D/g,""),10)||0),0)+1)).padStart(4,"0")}`,assetId:asset.id,symbol:asset.symbol,timeframe:tf,direction,trendType:direction==="AL"?"🟢 YÜKSELEN SİNYAL":"🔴 DÜŞEN SİNYAL",strategy:buildStrategyLabel(analysis),entryPrice:price,targetPrice:levels.targetPrice,stopPrice:levels.stopPrice,status:"ACTIVE",createdAt:now,expiresAt:now+horizonMs,lastCheckedPrice:price,exitPrice:null,netPnl:0,closeReason:null,resultTime:null,signalScore:score,confidence:finalConfidence,baseConfidence:confidence,weightedAdj,atr:Number(analysis.atr)||null,marketRegime:analysis.marketRegime||"BELİRSİZ",volumeRatio:Number(analysis.volume?.ratio)||null,modelVersion:tf === "15m" ? "MP-2.1-15M" : "MP-2.1-5M",strategyVersion:"REGIME-EMA-MACD-RSI-ICT-CRT-v1",mfe:0,mae:0,
+    // Açılış Snapshot'ı (MADDE 2) — sonradan değiştirilmez
+    techniques:techniqueVotes,weightsAtOpen:weightsSnapshot,learningEnabledAtOpen,
+    ema20:analysis.ema20,ema50:analysis.ema50,ema200:analysis.ema200,rsi:analysis.rsi,
+    support:analysis.support,resistance:analysis.resistance,momentum:analysis.momentum,
+    candlestickPattern:analysis.techniqueSignals?.candlestick?.name||null,
+    marketStructure:analysis.techniqueSignals?.structure?.name||null,
+    fvgType:analysis.techniqueSignals?.fvg?.name||null,
+    crtPattern:analysis.techniqueSignals?.crt?.name||null,
+    hour:openDate.getHours(),dateISO:openDate.toISOString().slice(0,10),
+    openNarrative:buildOpenNarrative(direction,techniqueVotes),
+    // Kapanışta doldurulacak alanlar
+    techniqueResults:null,closeNarrative:null,durationMs:null};
+  state.predictions.unshift(n); if(state.predictions.length>IMPROVEMENT_CONFIG.prediction.maxHistory) state.predictions.length=IMPROVEMENT_CONFIG.prediction.maxHistory; savePredictions(); updatePredictionUI(); renderPredictionList(); renderComprehensivePredTable(); showToast(`Yeni ${tf === "15m" ? "15dk" : "5dk"} tahmin: ${n.id} ${asset.symbol} [${direction}] · Güven %${finalConfidence}`); return n;
+}
+
+function settleTechniqueResults(p, exitPrice){
+  const techniques = p.techniques || {};
+  const entry = Number(p.entryPrice);
+  const out = {};
+  if(!Number.isFinite(entry) || !Number.isFinite(exitPrice)){
+    TECHNIQUES.forEach(t => out[t.key] = "NEUTRAL");
+    return out;
+  }
+  const movePct = ((exitPrice-entry)/entry)*100;
+  TECHNIQUES.forEach(t => {
+    const v = techniques[t.key];
+    if(!v || v.dir === 0){ out[t.key] = "NEUTRAL"; return; }
+    const aligned = v.dir > 0 ? movePct : -movePct;
+    out[t.key] = aligned > 0.0001 ? "WIN" : aligned < -0.0001 ? "LOSS" : "NEUTRAL";
+  });
+  return out;
+}
+
+function buildCloseNarrative(p, movePct){
+  const success = p.status === "SUCCESS", failed = p.status === "FAILED";
+  const mins = p.timeframe === "15m" ? 15 : 5;
+  return `Fiyat ${mins} dakika içinde %${Math.abs(movePct).toFixed(2)} ${movePct >= 0 ? "yükseldi" : "düştü"} ve tahmin ${success ? "başarılı" : failed ? "başarısız" : "nötr"} sonuçlandı.`;
 }
 
 function evaluatePredictions(currentPrice,assetId){
   if(!Number.isFinite(currentPrice)||!assetId) return; let changed=false; const now=Date.now();
-  state.predictions.forEach(p=>{ if(p.status!=="ACTIVE"||p.assetId!==assetId||!Number.isFinite(Number(p.entryPrice))) return; const pnl=calculatePnL(Number(p.entryPrice),currentPrice,p.direction); p.lastCheckedPrice=currentPrice;p.netPnl=pnl;p.mfe=Math.max(Number(p.mfe)||0,pnl);p.mae=Math.min(Number(p.mae)||0,pnl); const exp=Number(p.expiresAt)||Number(p.createdAt)+5*60*1000;
-    if(now>=exp){p.status=pnl>0.0001?"SUCCESS":pnl<-0.0001?"FAILED":"NEUTRAL";p.closeReason="Tam 5dk Vade Doldu";p.resultTime=now;p.exitPrice=currentPrice;p.netPnl=pnl;changed=true;}
+  state.predictions.forEach(p=>{ if(p.status!=="ACTIVE"||p.assetId!==assetId||!Number.isFinite(Number(p.entryPrice))) return; const pnl=calculatePnL(Number(p.entryPrice),currentPrice,p.direction); p.lastCheckedPrice=currentPrice;p.netPnl=pnl;p.mfe=Math.max(Number(p.mfe)||0,pnl);p.mae=Math.min(Number(p.mae)||0,pnl); const horizonMs = p.timeframe === "15m" ? 15*60*1000 : 5*60*1000;
+    const exp=Number(p.expiresAt)||Number(p.createdAt)+horizonMs;
+    if(now>=exp){
+      p.status=pnl>0.0001?"SUCCESS":pnl<-0.0001?"FAILED":"NEUTRAL";p.closeReason=`Tam ${p.timeframe === "15m" ? 15 : 5}dk Vade Doldu`;p.resultTime=now;p.exitPrice=currentPrice;p.netPnl=pnl;
+      // Kapanış Snapshot'ı (MADDE 3/4) — açılıştaki açıklama asla değiştirilmez, sonuç ayrı tutulur
+      const movePct=((currentPrice-Number(p.entryPrice))/Number(p.entryPrice))*100;
+      p.durationMs=now-Number(p.createdAt);
+      p.techniqueResults=settleTechniqueResults(p,currentPrice);
+      p.closeNarrative=buildCloseNarrative(p,movePct);
+      changed=true;
+    }
   });
-  if(changed){savePredictions();recalculateWinRate();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();} return changed;
+  if(changed){savePredictions();recalculateWinRate();PerfMemory.updateWeightsFromStats();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();} return changed;
 }
 
 // Seçili varlık ve takip edilen varlıkları 5dk diliminde tarama motoru
 let isScanningAll = false;
 async function scanAllMonitoredAssets(manual=false){
   if(isScanningAll||!navigator.onLine)return; isScanningAll=true; const assets=[...new Map([state.selectedAsset,...ASSETS.filter(a=>state.favorites?.has(a.id))].filter(Boolean).map(a=>[a.id,a])).values()];
-  if(manual)showToast(`${assets.length} takipli varlık için 5dk tarama başlatıldı.`);
-  try{for(const asset of assets){try{const d=await engine.load(asset,"5m",true);if(d?.quote?.price!=null&&d?.candles?.candles?.length>=30){evaluatePredictions(Number(d.quote.price),asset.id);if(!getActivePrediction(asset.id))checkAndGeneratePrediction(asset,"5m",d.candles.candles,d.analysis||calculateAnalysis(d.candles.candles));}}catch(e){console.warn(`5m tarama hatası ${asset.symbol}:`,e);}}}finally{isScanningAll=false;recalculateWinRate();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();if(manual)showToast(`5dk tarama tamamlandı: ${assets.length} varlık işlendi.`);}
+  if(manual)showToast(`${assets.length} takipli varlık için 5dk + 15dk çift tahmin taraması başlatıldı.`);
+  try{for(const asset of assets){try{const d=await engine.load(asset,"5m",true);if(d?.quote?.price!=null&&d?.candles?.candles?.length>=30){evaluatePredictions(Number(d.quote.price),asset.id);const an=d.analysis||calculateAnalysis(d.candles.candles);if(an){if(!getActivePrediction(asset.id,"5m"))checkAndGeneratePrediction(asset,"5m",d.candles.candles,an);if(!getActivePrediction(asset.id,"15m"))checkAndGeneratePrediction(asset,"15m",d.candles.candles,an);}}}catch(e){console.warn(`5m tarama hatası ${asset.symbol}:`,e);}}}finally{isScanningAll=false;recalculateWinRate();updatePredictionUI();renderPredictionList();renderComprehensivePredTable();if(manual)showToast(`5dk + 15dk çift tahmin taraması tamamlandı: ${assets.length} varlık işlendi.`);}
 }
 
 function recalculateWinRate(){
@@ -2574,7 +3012,7 @@ function renderPredictionList(){
   if(!list) return;
 
   if(!state.predictions.length){
-    list.innerHTML = `<div style="padding:24px; text-align:center; color:#5d6b7c; font-size:11px;">Henüz kaydedilmiş 5dk tahmin yok. Her 5 dakikalık zaman dilimi ayrı kayıt olarak tutulur.</div>`;
+    list.innerHTML = `<div style="padding:24px; text-align:center; color:#5d6b7c; font-size:11px;">Henüz kaydedilmiş 5dk / 15dk tahmin yok. İki bağımsız döngü aynı anda çalışır.</div>`;
     return;
   }
 
@@ -2601,7 +3039,7 @@ function renderPredictionList(){
   }).join("");
 }
 
-// Geçmiş 5dk Trend Tahminlerini Mum Verilerinden Otomatik Oluşturma ve Doğrulama
+// Geçmiş 5dk / 15dk tahminleri: sentetik geçmiş üretme; yalnızca gerçek açılmış kayıtları göster.
 function ensureHistoricalPredictions(asset, candles, force=false){
   // Canlı tahmin geçmişini mumlardan sentetik olarak üretmiyoruz.
   // Böylece geçmişteki fiyat hareketleri sonradan “gerçekleşmiş tahmin” gibi gösterilemez.
@@ -2613,7 +3051,7 @@ function ensureHistoricalPredictions(asset, candles, force=false){
   return state.predictions.filter(p=>p.assetId===asset.id&&p.timeframe==="5m");
 }
 
-// Seçili Varlığın 5dk Trend Tahminleri Tablosu (Yeniden Eskiye - Gerçekleşme Durumlu)
+// Seçili Varlığın 5dk + 15dk Trend Tahminleri Tablosu (Yeniden Eskiye - Gerçekleşme Durumlu)
 function renderComprehensivePredTable(){
   const tbodyMain = $("#predTableBodyMain");
   const currentAsset = state.selectedAsset;
@@ -2622,10 +3060,10 @@ function renderComprehensivePredTable(){
   // Başlığı güncelle
   if($("#predActiveAssetTitle")) $("#predActiveAssetTitle").textContent = currentAsset.symbol;
 
-  // Tablo: yalnızca seçili varlığın SON 24 SAATTEKİ 5dk tahminleri.
+  // Tablo: yalnızca seçili varlığın SON 24 SAATTEKİ 5dk + 15dk tahminleri.
   ensureHistoricalPredictions(currentAsset);
   const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
-  let items = state.predictions.filter(p => p.assetId === currentAsset.id && p.timeframe === "5m" && Number(p.createdAt) >= cutoff24h);
+  let items = state.predictions.filter(p => p.assetId === currentAsset.id && ["5m","15m"].includes(p.timeframe) && Number(p.createdAt) >= cutoff24h);
 
   // YENİDEN ESKİYE DOĞRU SIRALA (En yeni en üstte)
   items.sort((a, b) => b.createdAt - a.createdAt);
@@ -2655,7 +3093,7 @@ function renderComprehensivePredTable(){
     tbodyMain.innerHTML = `
       <tr>
         <td colspan="12" style="text-align:center; padding:26px; color:#64748b; font-size:11.5px;">
-          ${currentAsset.symbol} için henüz kaydedilmiş 5dk trend tahmini yok.<br>
+          ${currentAsset.symbol} için henüz kaydedilmiş 5dk / 15dk trend tahmini yok.<br>
           <button type="button" id="emptyPredBacktestBtn" style="margin-top:8px; padding:6px 14px; border-radius:7px; background:#0284c7; color:#fff; font-size:10.5px; font-weight:700; border:none; cursor:pointer;">📊 Backtest Sonuçlarını Gör</button>
         </td>
       </tr>
@@ -2694,7 +3132,7 @@ function renderComprehensivePredTable(){
 
     // 5dk Süre / Bitiş Gösterimi
     let durationDisplay = "";
-    const expiresAt = p.expiresAt || (p.createdAt + 5 * 60 * 1000);
+    const expiresAt = p.expiresAt || (p.createdAt + (p.timeframe === "15m" ? 15 : 5) * 60 * 1000);
     if(isActive){
       const remSec = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
       const remMin = Math.floor(remSec / 60);
@@ -2703,7 +3141,7 @@ function renderComprehensivePredTable(){
     } else {
       const finDate = new Date(p.resultTime || expiresAt);
       const finStr = finDate.toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
-      durationDisplay = `<span style="color:#94a3b8; font-size:10px; font-weight:600;">5dk Doldu (${finStr})</span>`;
+      durationDisplay = `<span style="color:#94a3b8; font-size:10px; font-weight:600;">${p.timeframe === "15m" ? "15dk" : "5dk"} Doldu (${finStr})</span>`;
     }
 
     const pnl = p.netPnl !== undefined ? p.netPnl : 0;
@@ -2748,6 +3186,108 @@ function calculatePredictionMetrics(predictions=state.predictions){
   let equity=0,peak=0,dd=0; vals.forEach(v=>{equity+=v;peak=Math.max(peak,equity);dd=Math.min(dd,equity-peak);});
   return {total:closed.length,active:predictions.filter(p=>p.status==="ACTIVE").length,wins:wins.length,losses:losses.length,neutral:closed.filter(p=>p.status==="NEUTRAL").length,winRate:closed.length?wins.length/closed.length*100:0,avgPnl:closed.length?vals.reduce((a,b)=>a+b,0)/closed.length:0,avgWin:wins.length?gp/wins.length:0,avgLoss:losses.length?gl/losses.length:0,profitFactor:gl?gp/gl:(gp?Infinity:0),expectancy:closed.length?vals.reduce((a,b)=>a+b,0)/closed.length:0,maxDrawdown:Math.abs(dd),grossProfit:gp,grossLoss:gl};
 }
+// PERFORMANCE MEMORY (MADDE 13) — teknik/saat/rejim/kombinasyon kırılımları.
+// Not: bu ekran yalnızca GÖZLEM amaçlıdır; buradaki sayılar hiçbir tekniğin
+// tanımını/eşiğini değiştirmez, yalnızca öğrenilmiş güven ağırlıklarını gösterir.
+function renderPerformanceMemoryTab(){
+  const wrap = $("#tabPerformance");
+  if(!wrap) return;
+
+  const metrics = calculatePredictionMetrics(state.predictions);
+  const techStats = PerfMemory.computeTechniqueStats();
+  const regimeStats = PerfMemory.computeRegimeStats();
+  const hourStats = PerfMemory.computeHourStats();
+  const comboStats = PerfMemory.computeComboStats();
+  const weights = state.perfWeights || PerfMemory.loadWeights();
+  const learningOn = PerfMemory.isLearningEnabled();
+
+  const wrColor = wr => wr == null ? "#64748b" : wr >= 55 ? "#4ade80" : wr <= 45 ? "#f87171" : "#eab308";
+  const fmtWr = wr => wr == null ? "—" : `%${wr.toFixed(1)}`;
+
+  const techRows = TECHNIQUES
+    .map(t => ({...t, s: techStats[t.key], w: weights[t.key] ?? 1}))
+    .sort((a,b) => (b.s.winRate ?? -1) - (a.s.winRate ?? -1))
+    .map(t => `
+      <tr>
+        <td style="font-weight:750; color:#e2e8f0;">${t.label}</td>
+        <td>${t.s.total}</td>
+        <td style="color:${wrColor(t.s.winRate)}; font-weight:800;">${fmtWr(t.s.winRate)}</td>
+        <td style="font-family:monospace;">×${t.w.toFixed(2)}</td>
+      </tr>`).join("");
+
+  const regimeRows = Object.entries(regimeStats)
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([regime,s]) => `
+      <tr>
+        <td style="color:#e2e8f0;">${escapeHtml(regime)}</td>
+        <td>${s.total}</td>
+        <td style="color:${wrColor(s.winRate)}; font-weight:800;">${fmtWr(s.winRate)}</td>
+      </tr>`).join("") || `<tr><td colspan="3" style="text-align:center; color:#5d6b7c;">Henüz kapanmış tahmin yok.</td></tr>`;
+
+  const hourRows = Object.entries(hourStats)
+    .filter(([,s]) => s.total > 0)
+    .sort((a,b) => Number(a[0]) - Number(b[0]))
+    .map(([h,s]) => `
+      <tr>
+        <td style="color:#e2e8f0;">${String(h).padStart(2,"0")}:00–${String(h).padStart(2,"0")}:59</td>
+        <td>${s.total}</td>
+        <td style="color:${wrColor(s.winRate)}; font-weight:800;">${fmtWr(s.winRate)}</td>
+      </tr>`).join("") || `<tr><td colspan="3" style="text-align:center; color:#5d6b7c;">Henüz kapanmış tahmin yok.</td></tr>`;
+
+  const comboRows = comboStats
+    .map(([combo,s]) => `
+      <tr>
+        <td style="color:#e2e8f0; font-size:9.5px;">${escapeHtml(combo)}</td>
+        <td>${s.total}</td>
+        <td style="color:${wrColor(s.winRate)}; font-weight:800;">${fmtWr(s.winRate)}</td>
+      </tr>`).join("") || `<tr><td colspan="3" style="text-align:center; color:#5d6b7c;">Henüz anlamlı (2-4 teknik) kombinasyon yok.</td></tr>`;
+
+  wrap.innerHTML = `
+    <div class="stat-cards">
+      <div class="stat-card"><div class="stat-card-title">TOPLAM TAHMİN</div><div class="stat-card-val">${state.predictions.length}</div></div>
+      <div class="stat-card"><div class="stat-card-title">BAŞARILI</div><div class="stat-card-val good">${metrics.wins}</div></div>
+      <div class="stat-card"><div class="stat-card-title">BAŞARISIZ</div><div class="stat-card-val bad">${metrics.losses}</div></div>
+      <div class="stat-card"><div class="stat-card-title">GENEL BAŞARI</div><div class="stat-card-val ${metrics.winRate>=50?'good':'bad'}">%${metrics.winRate.toFixed(1)}</div></div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:6px; margin:10px 0 4px; font-size:9.5px; font-weight:800; color:${learningOn?'#4ade80':'#94a3b8'};">
+      <span>●</span> Öğrenme Sistemi: ${learningOn ? "AÇIK — ağırlıklar performansa göre kontrollü güncelleniyor" : "KAPALI — varsayılan (nötr ×1.00) ağırlıklar kullanılıyor, kayıtlar tutulmaya devam ediyor"}
+    </div>
+
+    <div style="margin-top:10px; font-size:9.5px; font-weight:850; color:#94a3b8; letter-spacing:.05em;">EN GÜÇLÜ TEKNİKLER</div>
+    <div class="pred-table-wrap" style="margin-top:6px;">
+      <table class="perf-table">
+        <thead><tr><th>Teknik</th><th>Örneklem</th><th>Başarı</th><th>Öğrenilmiş Ağırlık</th></tr></thead>
+        <tbody>${techRows}</tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px; font-size:9.5px; font-weight:850; color:#94a3b8; letter-spacing:.05em;">MARKET REJİMİNE GÖRE BAŞARI</div>
+    <div class="pred-table-wrap" style="margin-top:6px;">
+      <table class="perf-table">
+        <thead><tr><th>Rejim</th><th>Toplam</th><th>Başarı</th></tr></thead>
+        <tbody>${regimeRows}</tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px; font-size:9.5px; font-weight:850; color:#94a3b8; letter-spacing:.05em;">SAATLİK BAŞARI</div>
+    <div class="pred-table-wrap" style="margin-top:6px; max-height:220px; overflow-y:auto;">
+      <table class="perf-table">
+        <thead><tr><th>Saat Dilimi</th><th>Toplam</th><th>Başarı</th></tr></thead>
+        <tbody>${hourRows}</tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px; font-size:9.5px; font-weight:850; color:#94a3b8; letter-spacing:.05em;">TEKNİK KOMBİNASYONLARI (2-4 TEKNİK, EN SIK GÖRÜLEN 8)</div>
+    <div class="pred-table-wrap" style="margin-top:6px;">
+      <table class="perf-table">
+        <thead><tr><th>Kombinasyon</th><th>Toplam</th><th>Başarı</th></tr></thead>
+        <tbody>${comboRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function backtestPredictionEngine(candles,options={}){
   const data=validateCandles(candles,IMPROVEMENT_CONFIG.data.minBacktestCandles); if(!data.length)return {error:"Backtest için yeterli temiz 5m candle yok.",trades:[],metrics:calculatePredictionMetrics([])};
   const warmup=Math.max(60,Number(options.warmup)||200),horizonBars=Math.max(1,Number(options.horizonBars)||1),trades=[];
@@ -2793,11 +3333,12 @@ function exportPredictionsCsv(){
 
 /* ============================================================
    AKILLI PİYASA YORUMU & DİNAMİK GELECEK TAHMİNİ MOTORU
-   (5dk, 10dk, 20dk, 30dk, 1saat, 4saat, 1gün)
+   (5dk, 10dk, 15dk, 20dk, 30dk, 1saat, 4saat, 1gün)
 ============================================================ */
 const HORIZON_CONFIGS = {
   "5m":  { label: "5dk",   steps: 6,  movePct: 0.0045, stopPct: 0.0025, volStep: 0.0008, conf: 50, confDecay: 1.00, text: "5 dakika" },
   "10m": { label: "10dk",  steps: 8,  movePct: 0.0075, stopPct: 0.0040, volStep: 0.0012, conf: 50, confDecay: 0.97, text: "10 dakika" },
+  "15m": { label: "15dk",  steps: 9,  movePct: 0.0095, stopPct: 0.0048, volStep: 0.0014, conf: 50, confDecay: 0.95, text: "15 dakika" },
   "20m": { label: "20dk",  steps: 10, movePct: 0.0110, stopPct: 0.0055, volStep: 0.0016, conf: 50, confDecay: 0.93, text: "20 dakika" },
   "30m": { label: "30dk",  steps: 12, movePct: 0.0150, stopPct: 0.0070, volStep: 0.0020, conf: 50, confDecay: 0.88, text: "30 dakika" },
   "1h":  { label: "1 saat",steps: 14, movePct: 0.0220, stopPct: 0.0100, volStep: 0.0026, conf: 50, confDecay: 0.78, text: "1 saat" },
@@ -2806,7 +3347,7 @@ const HORIZON_CONFIGS = {
 };
 
 function horizonToMs(h){
-  const map={"5m":5*60*1000,"10m":10*60*1000,"20m":20*60*1000,"30m":30*60*1000,"1h":60*60*1000,"4h":4*60*60*1000,"1d":24*60*60*1000};
+  const map={"5m":5*60*1000,"10m":10*60*1000,"15m":15*60*1000,"20m":20*60*1000,"30m":30*60*1000,"1h":60*60*1000,"4h":4*60*60*1000,"1d":24*60*60*1000};
   return map[h] || 30*60*1000;
 }
 
@@ -3687,12 +4228,6 @@ function getMarketSchedule(asset){
     nextOpenTime: isForexOpen ? "Şu an Açık" : "Pazartesi 00:00 TSİ",
     hoursText: "Hafta İçi 24 Saat (Pazartesi 00:00 - Cuma 23:55 TSİ)"
   };
-}
-
-function generateLastKnownCandles(asset, tf){
-  // Gerçek piyasa verisi yokken sentetik mum üretmek finansal analiz sonuçlarını yanıltabilir.
-  // Bu nedenle artık fallback olarak boş dizi döndürülür.
-  return [];
 }
 
 function updateChartMarketState(status){
@@ -4768,7 +5303,11 @@ $("#clearPredsMainBtn")?.addEventListener("click", () => {
   recalculateWinRate();
   updatePredictionUI();
   renderComprehensivePredTable();
-  showToast(`${currentAsset.symbol} trend tahminleri temizlendi.`);
+  renderPredictionList();
+  updateSettingsCounts();
+  scheduleNextPredictionCycles();
+  setTimeout(() => { runPredictionCycle5m(true); runPredictionCycle15m(true); }, 50);
+  showToast(`${currentAsset.symbol} trend tahminleri temizlendi. Yeni 5dk + 15dk tahminler hazırlanıyor.`);
 });
 
 // AKILLI PİYASA YORUMU TAHMİNİ GRAFİK TUŞLARI (Boğa & Ayı Gelecek Görseli)
@@ -4806,7 +5345,7 @@ if(bearForecastBtn){
 document.addEventListener("click",e=>{if(e.target?.id!=="emptyPredBacktestBtn")return;$("#settingsModal")?.classList.add("open");$("#settingsModalBackdrop")?.classList.add("open");$("#runBacktestBtn")?.click();});
 $("#runBacktestBtn")?.addEventListener("click",async()=>{const b=$("#runBacktestBtn"),a=state.selectedAsset;if(!a||!navigator.onLine){showToast("Backtest için çevrimiçi veri gerekli.");return;}b.disabled=true;b.textContent="5m geçmiş verisi çekiliyor...";try{const d=await engine.load(a,"5m",true),r=backtestPredictionEngine(d?.candles?.candles||[],{warmup:200,horizonBars:1});if(r.error)showToast(r.error);else{const m=r.metrics;showToast(`Backtest: ${m.total} işlem · WR %${m.winRate.toFixed(1)} · PF ${m.profitFactor===Infinity?"∞":m.profitFactor.toFixed(2)} · Exp ${m.expectancy.toFixed(2)}%`);}}catch(e){console.warn(e);showToast("Backtest sırasında veri hatası oluştu.");}finally{b.disabled=false;b.textContent="Geçmiş 5m veride Backtest Çalıştır";}});
 
-// TAHMİN VADESİ SEÇİM TUŞLARI (5dk, 10dk, 20dk, 30dk, 1saat, 4saat, 1gün)
+// TAHMİN VADESİ SEÇİM TUŞLARI (5dk, 10dk, 15dk, 20dk, 30dk, 1saat, 4saat, 1gün)
 $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
   btn.addEventListener("click", () => {
     const horizon = btn.dataset.horizon;
@@ -4825,98 +5364,95 @@ $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
  // setInterval(60sn) yerine setTimeout(expiresAt) kullanılıyor.
  // Böylece döngü sayfa açılışından itibaren kaymaz.
  // ============================================================
- const PREDICTION_HORIZON_MS = 5 * 60 * 1000;
- let predictionCycleTimer = null;
- let predictionCycleRunning = false;
- let predictionCycleAssetId = null;
-
- function getActivePrediction(assetId){
-   return state.predictions.find(
-     p => p.assetId === assetId && p.timeframe === "5m" && p.status === "ACTIVE"
-   ) || null;
- }
+ const PREDICTION_HORIZON_MS_5M = 5 * 60 * 1000;
+ const PREDICTION_HORIZON_MS_15M = 15 * 60 * 1000;
+ const PREDICTION_RETRY_MS = 15 * 1000;
+ let predictionCycleTimer5m = null;
+ let predictionCycleTimer15m = null;
+ let predictionCycleRunning5m = false;
+ let predictionCycleRunning15m = false;
 
  function updatePredictionCycleCountdown(){
    const asset = state.selectedAsset;
    if(!asset) return;
-
-   const active = getActivePrediction(asset.id);
+   const active5 = getActivePrediction(asset.id, "5m");
+   const active15 = getActivePrediction(asset.id, "15m");
    const now = Date.now();
-   let remaining = active ? Math.max(0, Number(active.expiresAt) - now) : 0;
-
-   const totalSeconds = Math.ceil(remaining / 1000);
-   const mm = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-   const ss = String(totalSeconds % 60).padStart(2, "0");
-   const str = active ? `${mm}:${ss}` : "00:00";
-
+   const fmt = ms => { const sec=Math.ceil(ms/1000); return `${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`; };
+   const str5 = active5 ? fmt(Math.max(0,Number(active5.expiresAt)-now)) : "00:00";
+   const str15 = active15 ? fmt(Math.max(0,Number(active15.expiresAt)-now)) : "00:00";
    const badge = $("#forecastCountdownBadge");
-   if(badge) badge.textContent = active ? `⏱ 5DK: ${str}` : "⏱ 5DK: YENİ TAHMİN AÇILIYOR...";
-
-   // Eski/alternatif rozet id'leri (varsa) geriye dönük uyumluluk için hâlâ güncellenir.
+   if(badge) badge.textContent = `⏱ 5DK: ${str5} · 15DK: ${str15}`;
    const c1 = $("#predCountdownBadge");
    const c2 = $("#forecastIntervalBadge");
-   if(c1) c1.textContent = active ? `TAHMİN KALAN: ${str}` : "YENİ TAHMİN AÇILIYOR...";
-   if(c2) c2.textContent = active ? `DÖNGÜ: ${str}` : "DÖNGÜ: 00:00";
+   if(c1) c1.textContent = `5DK: ${str5} · 15DK: ${str15}`;
+   if(c2) c2.textContent = `5DK: ${str5} · 15DK: ${str15}`;
  }
 
- async function runPredictionCycle(forceNew = false){
-   if(predictionCycleRunning || !state.selectedAsset || !navigator.onLine) return;
-
-   predictionCycleRunning = true;
-   try {
-     const asset = state.selectedAsset;
-     const activeBefore = getActivePrediction(asset.id);
-
-     // Aktif tahminin süresi dolmuşsa, 5m verisi üzerinden evaluatePredictions
-     // onu kapatır; engine.load içindeki sıra hemen ardından yeni tahmin açar.
-     const data5m = await engine.load(asset, "5m", true);
-
-     // engine.load aktif tahmini kapatmış olabilir. Hâlâ aktif kayıt varsa
-     // yeni kayıt açılmaz; yoksa aynı 5m verisiyle bir sonraki tahmin açılır.
-     if(data5m?.quote?.price != null && data5m?.candles?.candles?.length >= 30){
-       if(!getActivePrediction(asset.id)){
-         const an = data5m.analysis || calculateAnalysis(data5m.candles.candles);
-         if(an) checkAndGeneratePrediction(asset, "5m", data5m.candles.candles, an);
+ async function runPredictionCycle5m(forceNew = false){
+   if(predictionCycleRunning5m || !state.selectedAsset || !navigator.onLine) return;
+   predictionCycleRunning5m=true;
+   try{
+     const asset=state.selectedAsset, d=await engine.load(asset,"5m",true);
+     const candles=d?.candles?.candles || [];
+     const price=Number(d?.quote?.price);
+     if(Number.isFinite(price) && candles.length >= IMPROVEMENT_CONFIG.data.minCandles){
+       evaluatePredictions(price,asset.id);
+       if(!getActivePrediction(asset.id,"5m")){
+         const an=d.analysis||calculateAnalysis(candles);
+         const created=an ? checkAndGeneratePrediction(asset,"5m",candles,an) : null;
+         if(!created) console.warn(`[${asset.symbol}] 5dk yeni tahmin açılamadı: analiz/sinyal üretimi başarısız.`);
        }
+     } else {
+       console.warn(`[${asset.symbol}] 5dk döngüsü veri bekliyor: fiyat=${Number.isFinite(price)?"OK":"YOK"}, mum=${candles.length}.`);
      }
-
-     predictionCycleAssetId = asset.id;
-     updatePredictionCycleCountdown();
-   } catch(err){
-     console.warn("5dk tahmin döngüsü hatası:", err);
-   } finally {
-     predictionCycleRunning = false;
-   }
-
-   scheduleNextPredictionCycle();
+   }catch(e){console.warn("5dk tahmin döngüsü hatası:",e);}finally{predictionCycleRunning5m=false;}
+   scheduleNextPredictionCycles();
  }
 
- function scheduleNextPredictionCycle(){
-   if(predictionCycleTimer) clearTimeout(predictionCycleTimer);
-   predictionCycleTimer = null;
-
-   const asset = state.selectedAsset;
-   if(!asset) return;
-
-   const active = getActivePrediction(asset.id);
-   predictionCycleAssetId = asset.id;
-
-   updatePredictionCycleCountdown();
-
-   if(!active){
-     // Tahmin yoksa beklemeden yeni 5dk tahmini aç.
-     predictionCycleTimer = setTimeout(() => runPredictionCycle(true), 50);
-     return;
-   }
-
-   const expiresAt = Number(active.expiresAt) || (Number(active.createdAt) + PREDICTION_HORIZON_MS);
-   const delay = Math.max(50, expiresAt - Date.now());
-
-   predictionCycleTimer = setTimeout(async () => {
-     // Vade anında gerçek fiyatı tekrar çek, tahmini kapat ve yenisini aç.
-     await runPredictionCycle(true);
-   }, delay);
+ async function runPredictionCycle15m(forceNew = false){
+   if(predictionCycleRunning15m || !state.selectedAsset || !navigator.onLine) return;
+   predictionCycleRunning15m=true;
+   try{
+     const asset=state.selectedAsset, d=await engine.load(asset,"5m",true);
+     const candles=d?.candles?.candles || [];
+     const price=Number(d?.quote?.price);
+     if(Number.isFinite(price) && candles.length >= IMPROVEMENT_CONFIG.data.minCandles){
+       evaluatePredictions(price,asset.id);
+       if(!getActivePrediction(asset.id,"15m")){
+         const an=d.analysis||calculateAnalysis(candles);
+         const created=an ? checkAndGeneratePrediction(asset,"15m",candles,an) : null;
+         if(!created) console.warn(`[${asset.symbol}] 15dk yeni tahmin açılamadı: analiz/sinyal üretimi başarısız.`);
+       }
+     } else {
+       console.warn(`[${asset.symbol}] 15dk döngüsü veri bekliyor: fiyat=${Number.isFinite(price)?"OK":"YOK"}, mum=${candles.length}.`);
+     }
+   }catch(e){console.warn("15dk tahmin döngüsü hatası:",e);}finally{predictionCycleRunning15m=false;}
+   scheduleNextPredictionCycles();
  }
+
+ function scheduleNextPredictionCycle5m(){
+   if(predictionCycleTimer5m) clearTimeout(predictionCycleTimer5m); predictionCycleTimer5m=null;
+   const asset=state.selectedAsset; if(!asset)return;
+   if(!navigator.onLine){predictionCycleTimer5m=setTimeout(scheduleNextPredictionCycle5m,PREDICTION_RETRY_MS);return;}
+   const active=getActivePrediction(asset.id,"5m");
+   if(!active){predictionCycleTimer5m=setTimeout(()=>runPredictionCycle5m(true),PREDICTION_RETRY_MS);return;}
+   const expiresAt=Number(active.expiresAt)||(Number(active.createdAt)+PREDICTION_HORIZON_MS_5M);
+   predictionCycleTimer5m=setTimeout(()=>runPredictionCycle5m(true),Math.max(50,expiresAt-Date.now()));
+ }
+
+ function scheduleNextPredictionCycle15m(){
+   if(predictionCycleTimer15m) clearTimeout(predictionCycleTimer15m); predictionCycleTimer15m=null;
+   const asset=state.selectedAsset; if(!asset)return;
+   if(!navigator.onLine){predictionCycleTimer15m=setTimeout(scheduleNextPredictionCycle15m,PREDICTION_RETRY_MS);return;}
+   const active=getActivePrediction(asset.id,"15m");
+   if(!active){predictionCycleTimer15m=setTimeout(()=>runPredictionCycle15m(true),PREDICTION_RETRY_MS);return;}
+   const expiresAt=Number(active.expiresAt)||(Number(active.createdAt)+PREDICTION_HORIZON_MS_15M);
+   predictionCycleTimer15m=setTimeout(()=>runPredictionCycle15m(true),Math.max(50,expiresAt-Date.now()));
+ }
+
+ function scheduleNextPredictionCycles(){ updatePredictionCycleCountdown(); scheduleNextPredictionCycle5m(); scheduleNextPredictionCycle15m(); }
+ function scheduleNextPredictionCycle(){ scheduleNextPredictionCycles(); }
 
  // Sayaç sadece UI içindir; asıl tetikleyici expiresAt tabanlı setTimeout'tur.
  setInterval(updatePredictionCycleCountdown, 1000);
@@ -4925,12 +5461,12 @@ $$("#forecastHorizonPills .horizon-pill").forEach(btn => {
  // hemen vade kontrolü yap.
  document.addEventListener("visibilitychange", () => {
    if(document.visibilityState === "visible"){
-     const active = state.selectedAsset ? getActivePrediction(state.selectedAsset.id) : null;
-     if(active && Date.now() >= Number(active.expiresAt || 0)){
-       runPredictionCycle(true);
-     } else {
-       scheduleNextPredictionCycle();
-     }
+     const assetId=state.selectedAsset?.id;
+     const active5=assetId?getActivePrediction(assetId,"5m"):null;
+     const active15=assetId?getActivePrediction(assetId,"15m"):null;
+     if((active5&&Date.now()>=Number(active5.expiresAt||0))||(active15&&Date.now()>=Number(active15.expiresAt||0))){
+       runPredictionCycle5m(true); runPredictionCycle15m(true);
+     }else scheduleNextPredictionCycles();
    }
  });
 
@@ -5130,7 +5666,7 @@ $("#clearPredsBtn")?.addEventListener("click", () => {
   }
 });
 
-// 5dk tahminleri artık expiresAt tabanlı predictionCycleTimer ile yönetiliyor.
+// 5dk ve 15dk tahminleri ayrı expiresAt tabanlı timer döngüleriyle yönetiliyor.
  // Eski 60 saniyelik tarama döngüsü kaldırıldı; bu sayede aynı tahmin
  // 5 dakika içinde tekrar tekrar taranıp yeni kayıt üretmez.
 
@@ -5321,6 +5857,7 @@ async function selectAsset(id){
   engine.disconnectRealtime();
   await loadData(false);
   renderComprehensivePredTable();
+  scheduleNextPredictionCycle();
 }
 
 function updateSelectedAssetUI(asset){
@@ -5399,15 +5936,12 @@ $$(".panel-tab-btn").forEach(btn => {
     $$(".panel-tab-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     const tab = btn.dataset.tab;
-    if(tab === "predictions"){
-      $("#tabPredictions").style.display = "block";
-      $("#tabCalculator").style.display = "none";
-      renderPredictionList();
-    } else {
-      $("#tabPredictions").style.display = "none";
-      $("#tabCalculator").style.display = "block";
-      runPnLCalculator();
-    }
+    $("#tabPredictions").style.display = tab === "predictions" ? "block" : "none";
+    $("#tabPerformance").style.display = tab === "performance" ? "block" : "none";
+    $("#tabCalculator").style.display = tab === "calculator" ? "block" : "none";
+    if(tab === "predictions") renderPredictionList();
+    else if(tab === "performance") renderPerformanceMemoryTab();
+    else runPnLCalculator();
   });
 });
 
@@ -5493,6 +6027,64 @@ $("#assetSearch").addEventListener("input", event => {
    PREDICTION LOG & HISTORICAL INSPECTION
 ============================================================ */
 const PredictionLog = {
+  buildExplanationHtml(pred){
+    if(!pred.techniques){
+      return `<div style="font-size:9.5px; color:#94a3b8; padding:4px 0;">Bu kayıt teknik bazlı veri tutulmadan önce oluşturulmuş (eski kayıt) — detaylı döküm mevcut değil.</div>`;
+    }
+    const dirNum = pred.direction === "AL" ? 1 : -1;
+    const supporting = TECHNIQUES.filter(t => pred.techniques[t.key]?.dir === dirNum);
+    const opposing = TECHNIQUES.filter(t => pred.techniques[t.key]?.dir === -dirNum);
+
+    const confluenceLine = supporting.length
+      ? `${supporting.map(t=>t.label).join(" + ")} aynı yönde sinyal üretiyordu.`
+      : "Teknikler arasında net bir çoğunluk yoktu.";
+
+    let learnedLine = "Öğrenme sistemi bu tahmin açıldığında kapalıydı.";
+    if(pred.learningEnabledAtOpen && supporting.length){
+      const liveStats = PerfMemory.computeTechniqueStats();
+      const top = [...supporting].sort((a,b) => (pred.weightsAtOpen?.[b.key]??1) - (pred.weightsAtOpen?.[a.key]??1))[0];
+      const s = liveStats[top.key];
+      const w = pred.weightsAtOpen?.[top.key] ?? 1;
+      learnedLine = s.winRate != null
+        ? `${top.label}, o ana kadarki kapanmış tahminlerde %${s.winRate.toFixed(1)} başarı gösterdi (o anki öğrenilmiş ağırlık ×${w.toFixed(2)}).`
+        : `${top.label} için henüz yeterli örneklem yok (o anki ağırlık ×${w.toFixed(2)}, nötr).`;
+    }
+
+    const riskLine = opposing.length
+      ? `${opposing.map(t=>t.label).join(" + ")} ters yöndeydi.`
+      : "Tekniklerden belirgin bir ters sinyal yoktu.";
+
+    const decisionLine = `${pred.direction === "AL" ? "YÜKSELİŞ (AL)" : "DÜŞÜŞ (SAT)"} — %${pred.confidence} güven` +
+      (Number.isFinite(pred.weightedAdj) && pred.weightedAdj !== 0
+        ? ` (ana skor güveni %${pred.baseConfidence}, ağırlık motoru ${pred.weightedAdj>0?"+":""}${pred.weightedAdj})`
+        : "") + ".";
+
+    let resultBlock = "";
+    if(pred.status !== "ACTIVE" && pred.closeNarrative){
+      const chips = TECHNIQUES.map(t => {
+        const r = pred.techniqueResults?.[t.key];
+        if(!r) return "";
+        const color = r === "WIN" ? "#4ade80" : r === "LOSS" ? "#f87171" : "#94a3b8";
+        return `<span style="font-size:8.5px; font-weight:800; color:${color}; border:1px solid ${color}55; background:${color}18; padding:2px 6px; border-radius:5px;">${t.label}: ${r === "WIN" ? "✓" : r === "LOSS" ? "✕" : "–"}</span>`;
+      }).join(" ");
+      resultBlock = `
+        <div style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,.12);">
+          <div style="font-size:9.5px; font-weight:850; color:#e2e8f0;">📌 Sonuç Değerlendirmesi</div>
+          <div style="font-size:9.5px; color:#cbd5e1; margin-top:2px;">${escapeHtml(pred.closeNarrative)}</div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">${chips}</div>
+        </div>`;
+    }
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:3px; font-size:9.5px; color:#cbd5e1; line-height:1.5;">
+        <div><strong style="color:#e2e8f0;">📊 Analiz</strong> — ${escapeHtml(pred.openNarrative || "")}</div>
+        <div><strong style="color:#e2e8f0;">🔗 Confluence</strong> — ${escapeHtml(confluenceLine)}</div>
+        <div><strong style="color:#e2e8f0;">🧠 Öğrenilmiş performans</strong> — ${escapeHtml(learnedLine)}</div>
+        <div><strong style="color:#e2e8f0;">⚠️ Risk</strong> — ${escapeHtml(riskLine)}</div>
+        <div><strong style="color:#e2e8f0;">🎯 Nihai karar</strong> — ${escapeHtml(decisionLine)}</div>
+        ${resultBlock}
+      </div>`;
+  },
   inspect(id){
     const pred = state.predictions.find(p => p.id === id);
     if(!pred){
@@ -5535,11 +6127,16 @@ const PredictionLog = {
     if(mainBanner){
       mainBanner.style.display = "flex";
       mainBanner.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span class="pred-inspect-pill">İNCELEME MODU</span>
-          <span style="color:#f8fafc; font-weight:800; font-size:10px;">${pred.id} ${pred.symbol} (${pred.timeframe}) · <strong style="color:${pred.direction==='AL'?'#4ade80':'#f87171'}">${pred.direction}</strong> · Giriş: $${formatPrice(pred.entryPrice)} · Hedef: $${formatPrice(pred.targetPrice)} · Stop: $${formatPrice(pred.stopPrice)}</span>
+        <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="pred-inspect-pill">İNCELEME MODU</span>
+              <span style="color:#f8fafc; font-weight:800; font-size:10px;">${pred.id} ${pred.symbol} (${pred.timeframe}) · <strong style="color:${pred.direction==='AL'?'#4ade80':'#f87171'}">${pred.direction}</strong> · Giriş: $${formatPrice(pred.entryPrice)} · Hedef: $${formatPrice(pred.targetPrice)} · Stop: $${formatPrice(pred.stopPrice)}</span>
+            </div>
+            <button class="pred-inspect-close-btn" type="button" onclick="PredictionLog.clearInspection()">✕ Kapat</button>
+          </div>
+          ${PredictionLog.buildExplanationHtml(pred)}
         </div>
-        <button class="pred-inspect-close-btn" type="button" onclick="PredictionLog.clearInspection()">✕ Kapat</button>
       `;
     }
 
@@ -5883,6 +6480,8 @@ function openSettingsModal(){
   document.querySelectorAll("#themeGrid .theme-card").forEach(card => {
     card.classList.toggle("active", card.dataset.theme === (state.theme || "dark"));
   });
+  const learnToggle = $("#learningToggleSwitch");
+  if(learnToggle) learnToggle.checked = PerfMemory.isLearningEnabled();
   modal.classList.add("open");
   if(backdrop) backdrop.classList.add("open");
 }
@@ -5897,6 +6496,21 @@ function closeSettingsModal(){
 $("#settingsModalBtn")?.addEventListener("click", openSettingsModal);
 $("#closeSettingsModal")?.addEventListener("click", closeSettingsModal);
 $("#settingsModalBackdrop")?.addEventListener("click", closeSettingsModal);
+
+$("#learningToggleSwitch")?.addEventListener("change", e => {
+  PerfMemory.setLearningEnabled(e.target.checked);
+  showToast(e.target.checked
+    ? "Öğrenme sistemi açıldı — ağırlıklar performansa göre kontrollü güncellenecek."
+    : "Öğrenme sistemi kapatıldı — varsayılan ağırlıklar kullanılacak. Kayıtlar silinmedi.");
+});
+
+$("#resetWeightsBtn")?.addEventListener("click", () => {
+  if(!confirm("Öğrenilmiş tüm ağırlıklar 1.00 değerine döndürülecek. Geçmiş tahminler ve performans istatistikleri SİLİNMEYECEK. Onaylıyor musunuz?")) return;
+  PerfMemory.resetWeights();
+  state.perfWeights = PerfMemory.loadWeights();
+  showToast("Ağırlıklar varsayılana döndürüldü. Geçmiş kayıtlar korundu.");
+  if($("#tabPerformance")?.style.display !== "none") renderPerformanceMemoryTab();
+});
 
 $("#settingsOpenGeminiBtn")?.addEventListener("click", () => {
   closeSettingsModal();
@@ -5933,8 +6547,9 @@ $("#clearCurrentAssetPredsBtn")?.addEventListener("click", () => {
 
   // Temizleme sonrası eski expiresAt timer'ı iptal edilir ve seçili varlık
   // için yeni 5dk tahmin döngüsü anında yeniden başlatılır.
-  scheduleNextPredictionCycle();
-  showToast(`${sym} varlığına ait ${beforeCount} adet tahmin başarıyla temizlendi. Yeni 5dk tahmin hazırlanıyor.`);
+  scheduleNextPredictionCycles();
+  setTimeout(() => { runPredictionCycle5m(true); runPredictionCycle15m(true); }, 50);
+  showToast(`${sym} varlığına ait ${beforeCount} adet tahmin başarıyla temizlendi. Yeni 5dk + 15dk tahminler hazırlanıyor.`);
 });
 
 // Tüm Varlıkların Tüm Tahminlerini Temizle
@@ -5976,7 +6591,7 @@ window.addEventListener("offline", () => {
 window.addEventListener("online", () => {
   showToast("Bağlantı sağlandı.");
   loadData(true);
-  setTimeout(() => scheduleNextPredictionCycle(), 250);
+  setTimeout(() => scheduleNextPredictionCycles(), 250);
 });
 
 setInterval(() => {
@@ -6022,7 +6637,105 @@ async function init(){
   scheduleNextPredictionCycle();
 }
 
-init();
+/* ============================================================
+   ACCESS GATE
+   Not a security boundary: GitHub Pages serves this HTML/JS publicly.
+============================================================ */
+const ACCESS_USERS = Object.freeze([
+  { id: "U01", code: "MP-704DFB-CBE6" },
+  { id: "U02", code: "MP-40CA14-1874" },
+  { id: "U03", code: "MP-405173-4B4B" },
+  { id: "U04", code: "MP-AEF0B8-7FDF" },
+  { id: "U05", code: "MP-DC09A2-B80E" },
+  { id: "U06", code: "MP-4DB486-C78D" },
+  { id: "U07", code: "MP-1BF460-7115" },
+  { id: "U08", code: "MP-C08C0D-999E" },
+  { id: "U09", code: "MP-05DC0D-0BB1" },
+  { id: "U10", code: "MP-AA8369-F7E5" }
+]);
+const ACCESS_SESSION_KEY = "marketpulse.access.session";
+const DISCLAIMER_ACCEPTED_KEY = "marketpulse.disclaimer.accepted.v1";
+
+function normalizeAccessCode(value){
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+function getAccessUser(code){
+  const normalized = normalizeAccessCode(code);
+  return ACCESS_USERS.find(u => u.code === normalized) || null;
+}
+function showDisclaimer(user){
+  const modal = document.getElementById("disclaimerModal");
+  const userBox = document.getElementById("accessUser");
+  if(userBox){ userBox.textContent = `Erişim: ${user.id}`; userBox.style.display = "block"; }
+  modal?.classList.add("open");
+  modal?.setAttribute("aria-hidden", "false");
+}
+function hideDisclaimer(){
+  const modal = document.getElementById("disclaimerModal");
+  modal?.classList.remove("open");
+  modal?.setAttribute("aria-hidden", "true");
+}
+function unlockApplication(user){
+  try{ localStorage.setItem(ACCESS_SESSION_KEY, JSON.stringify({id:user.id, unlockedAt:Date.now()})); }catch(e){}
+  document.body.classList.remove("access-locked");
+  document.getElementById("accessGate")?.classList.add("hidden");
+  hideDisclaimer();
+  init();
+}
+function bootAccessGate(){
+  const gate = document.getElementById("accessGate");
+  const input = document.getElementById("accessCode");
+  const button = document.getElementById("accessLoginBtn");
+  const error = document.getElementById("accessError");
+  const accept = document.getElementById("disclaimerAccept");
+  const continueBtn = document.getElementById("disclaimerContinueBtn");
+  const exitBtn = document.getElementById("disclaimerExitBtn");
+  const storedAccepted = localStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === "1";
+  let pendingUser = null;
+
+  const login = () => {
+    const user = getAccessUser(input?.value);
+    if(!user){
+      if(error) error.textContent = "Geçersiz erişim anahtarı. Size verilen kodu kontrol edin.";
+      input?.focus();
+      return;
+    }
+    if(error) error.textContent = "";
+    pendingUser = user;
+    if(storedAccepted){
+      unlockApplication(user);
+    }else{
+      showDisclaimer(user);
+    }
+  };
+  button?.addEventListener("click", login);
+  input?.addEventListener("keydown", e => { if(e.key === "Enter") login(); });
+  accept?.addEventListener("change", () => { if(continueBtn) continueBtn.disabled = !accept.checked; });
+  continueBtn?.addEventListener("click", () => {
+    if(!pendingUser || !accept?.checked) return;
+    try{ localStorage.setItem(DISCLAIMER_ACCEPTED_KEY, "1"); }catch(e){}
+    unlockApplication(pendingUser);
+  });
+  exitBtn?.addEventListener("click", () => {
+    pendingUser = null;
+    hideDisclaimer();
+    if(input) input.value = "";
+    if(error) error.textContent = "Giriş yapılmadı.";
+  });
+
+  // Only unlock when a valid session exists AND the first-use disclaimer was accepted.
+  let session = null;
+  try{ session = JSON.parse(localStorage.getItem(ACCESS_SESSION_KEY) || "null"); }catch(e){}
+  const sessionUser = session?.id ? ACCESS_USERS.find(u => u.id === session.id) : null;
+  if(sessionUser && storedAccepted){
+    unlockApplication(sessionUser);
+  }else{
+    gate?.classList.remove("hidden");
+    setTimeout(() => input?.focus(), 50);
+  }
+}
+
+bootAccessGate();
 
 /* ============================================================
    GLOBAL ERROR / UNHANDLED PROMISE SAFETY
