@@ -830,6 +830,7 @@ button,input{font:inherit;} button{cursor:pointer;} button:disabled{cursor:defau
     <div id="commentaryStatusText" class="commentary-summary">
       Grafik ve teknik göstergeler inceleniyor, seçilen vadeye göre koşullu projeksiyonlar üretiliyor...
     </div>
+    <div id="techniqueForecastList"></div>
 
     <!-- GÖRSEL SİMÜLASYON GRAFİĞİ (FORECAST CHART) -->
     <div class="forecast-integrated-wrap" id="forecastIntegratedWrap">
@@ -2313,6 +2314,98 @@ function detectCRT_TBS(candles){
   return null;
 }
 
+// Seçilen vadeye göre HER TEKNİK için ayrı, somut bir tahmin satırı üretir.
+// Vade değiştiğinde (5dk/10dk/.../1 gün) hedef fiyatlar ve dolayısıyla
+// bu satırların tamamı yeniden hesaplanır.
+function buildTechniqueForecasts(analysis, cur, horizon){
+  const cfg = HORIZON_CONFIGS[horizon] || HORIZON_CONFIGS["30m"];
+  const baseLevels = calculatePredictionLevels(cur, analysis, "AL", horizonToMs(horizon));
+  const baseMovePct = baseLevels.targetPct;
+
+  const line = (label, dir, strength, note) => {
+    if(dir === 0){
+      return {label, verdict:"NÖTR", text:`${note} — ${cfg.label} için belirgin yön sinyali yok.`};
+    }
+    const pct = clamp(baseMovePct * strength, 0.0015, 0.15);
+    const target = dir > 0 ? cur * (1 + pct) : cur * (1 - pct);
+    const verdict = dir > 0 ? "YÜKSELİŞ" : "DÜŞÜŞ";
+    return {label, verdict, text:`${note} — ${cfg.label} içinde ~$${formatPrice(target)} (${dir>0?"+":"-"}%${(pct*100).toFixed(2)}) hedefleniyor.`};
+  };
+
+  const out = [];
+
+  // EMA Tekniği
+  if(analysis.ema20 != null && analysis.ema50 != null){
+    const dir = analysis.ema20 > analysis.ema50 ? 1 : analysis.ema20 < analysis.ema50 ? -1 : 0;
+    out.push(line("EMA Tekniği", dir, 1.0, dir>0 ? "EMA20, EMA50 üzerinde" : dir<0 ? "EMA20, EMA50 altında" : "EMA20/EMA50 iç içe"));
+  } else out.push({label:"EMA Tekniği", verdict:"NÖTR", text:"Yeterli mum verisi yok."});
+
+  // RSI Tekniği
+  if(analysis.rsi != null){
+    const r = analysis.rsi;
+    let dir = 0, note = "RSI nötr bantta (45-55)";
+    if(r >= 70){ dir = -1; note = "RSI aşırı alımda, düzeltme riski var"; }
+    else if(r <= 30){ dir = 1; note = "RSI aşırı satımda, tepki alımı olası"; }
+    else if(r > 55){ dir = 1; note = "RSI ortalamanın üzerinde"; }
+    else if(r < 45){ dir = -1; note = "RSI ortalamanın altında"; }
+    out.push(line("RSI Tekniği", dir, (r>=70||r<=30) ? 1.3 : 0.7, note));
+  } else out.push({label:"RSI Tekniği", verdict:"NÖTR", text:"Yeterli veri yok."});
+
+  // MACD Tekniği
+  if(analysis.macd && analysis.macd.histogram != null){
+    const dir = analysis.macd.histogram > 0 ? 1 : analysis.macd.histogram < 0 ? -1 : 0;
+    out.push(line("MACD Tekniği", dir, 0.9, dir>0 ? "Histogram pozitif bölgede" : dir<0 ? "Histogram negatif bölgede" : "Histogram sıfıra yakın"));
+  } else out.push({label:"MACD Tekniği", verdict:"NÖTR", text:"Yeterli veri yok."});
+
+  // Hacim Tekniği
+  if(analysis.volume && analysis.volume.ratio != null){
+    const v = analysis.volume.ratio;
+    const dir = v >= 1.35 ? (analysis.score >= 50 ? 1 : -1) : 0;
+    out.push(line("Hacim Tekniği", dir, 0.6, v >= 1.35 ? "Hacim ortalamanın belirgin üzerinde, mevcut yönü destekliyor" : "Hacim normal/düşük seviyede, teyit zayıf"));
+  } else out.push({label:"Hacim Tekniği", verdict:"NÖTR", text:"Yeterli veri yok."});
+
+  // Trend Çizgisi / Piyasa Yapısı (ICT Break of Structure)
+  const structure = analysis.techniqueSignals?.structure;
+  out.push(structure
+    ? line("Trend Çizgisi / Yapı Tekniği", structure.bias, 1.1, structure.name)
+    : {label:"Trend Çizgisi / Yapı Tekniği", verdict:"NÖTR", text:"Son fiyat hareketi belirgin bir yapı kırılımı (BOS) oluşturmadı."});
+
+  // Mum Formasyonu Tekniği
+  const candlestick = analysis.techniqueSignals?.candlestick;
+  out.push((candlestick && candlestick.bias !== 0)
+    ? line("Mum Formasyonu Tekniği", candlestick.bias, 0.8, candlestick.name)
+    : {label:"Mum Formasyonu Tekniği", verdict:"NÖTR", text:"Son mumlarda belirgin bir yön formasyonu oluşmadı."});
+
+  // ICT Fair Value Gap (FVG) Tekniği
+  const fvg = analysis.techniqueSignals?.fvg;
+  out.push(fvg
+    ? line("ICT FVG Tekniği", fvg.bias, 0.9, fvg.name)
+    : {label:"ICT FVG Tekniği", verdict:"NÖTR", text:"Fiyata yakın, doldurulmamış bir FVG bölgesi yok."});
+
+  // CRT+TBS Tekniği (Candle Range Theory + True Body Size)
+  const crt = analysis.techniqueSignals?.crt;
+  out.push(crt
+    ? line("CRT+TBS Tekniği", crt.bias, 1.2, crt.name)
+    : {label:"CRT+TBS Tekniği", verdict:"NÖTR", text:"Aktif bir sweep + reclaim (CRT) sinyali yok."});
+
+  return out;
+}
+
+function renderTechniqueForecastList(analysis, cur, horizon){
+  const wrap = $("#techniqueForecastList");
+  if(!wrap) return;
+  if(!analysis || cur == null){
+    wrap.innerHTML = "";
+    return;
+  }
+  const cfg = HORIZON_CONFIGS[horizon] || HORIZON_CONFIGS["30m"];
+  const items = buildTechniqueForecasts(analysis, cur, horizon);
+  const colorFor = v => v === "YÜKSELİŞ" ? "#4ade80" : v === "DÜŞÜŞ" ? "#f87171" : "#94a3b8";
+  wrap.innerHTML =
+    `<div style="font-size:9.5px; font-weight:850; color:#94a3b8; letter-spacing:.06em; margin:8px 0 4px;">YÖNTEME GÖRE TAHMİN (${cfg.label.toUpperCase()})</div>` +
+    items.map(it => `<div style="font-size:10.5px; line-height:1.55;"><strong style="color:${colorFor(it.verdict)}">${it.label} İçin Tahmin: ${it.verdict}</strong> — ${it.text}</div>`).join("");
+}
+
 function calculateAnalysis(candles){
   if(!candles || candles.length < 10) return null;
   const closes = candles.map(x => x.close);
@@ -2356,12 +2449,11 @@ function calculateAnalysis(candles){
 
   // Ek teyit katmanı: mum formasyonu, trend yapısı/BOS, FVG, CRT+TBS.
   // Tavan ±15 puan ile ana göstergeleri asla ezmez, sadece teyit/incelik katar.
-  const confluenceHits = [
-    detectCandlestickPattern(candles),
-    detectMarketStructure(candles),
-    detectFVG(candles),
-    detectCRT_TBS(candles)
-  ].filter(Boolean);
+  const candlestickHit = detectCandlestickPattern(candles);
+  const structureHit = detectMarketStructure(candles);
+  const fvgHit = detectFVG(candles);
+  const crtHit = detectCRT_TBS(candles);
+  const confluenceHits = [candlestickHit, structureHit, fvgHit, crtHit].filter(Boolean);
   const confluenceDelta = clamp(confluenceHits.reduce((sum, c) => sum + c.bias * c.weight, 0), -15, 15);
   score += confluenceDelta;
   score = clamp(score, 0, 100);
@@ -2369,6 +2461,7 @@ function calculateAnalysis(candles){
     .filter(c => c.tag && c.bias !== 0)
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 3);
+  const techniqueSignals = {candlestick:candlestickHit, structure:structureHit, fvg:fvgHit, crt:crtHit};
 
   let signal = "NÖTR", trend = "NÖTR";
   if(score >= 62) signal = "POZİTİF";
@@ -2380,7 +2473,7 @@ function calculateAnalysis(candles){
   }
 
   const base={current,ema20,ema50,ema200,rsi:rsiVal,atr:atrVal,macd:macdVal,momentum,support:sup,resistance:res,score,signal,trend};
-  return {...base, volume, confluences, marketRegime:detectMarketRegime(candles,base)};
+  return {...base, volume, confluences, techniqueSignals, marketRegime:detectMarketRegime(candles,base)};
 }
 
 /* ============================================================
@@ -2735,6 +2828,9 @@ function generateInstantForecast(horizon = "30m", forceRedraw = false){
   const analysis = state.data?.analysis || calculateAnalysis(candles);
   const sup = analysis?.support || cur * 0.98;
   const res = analysis?.resistance || cur * 1.02;
+
+  // Seçilen vadeye göre teknik başına ayrı tahmin satırları (EMA/RSI/MACD/... )
+  renderTechniqueForecastList(analysis, cur, horizon);
 
   // Boğa Seviyeleri (Yukarı Koşullu Projeksiyon)
   const bullLevels = calculatePredictionLevels(cur, analysis, "AL", horizonToMs(horizon));
@@ -3274,6 +3370,8 @@ function renderCommentary(asset, tf, candles, an){
     regEl.style.background = "rgba(100,116,139,.15)";
     regEl.style.color = "#94a3b8";
     descEl.textContent = "Teknik göstergeler ve fiyat yapısı analiz ediliyor...";
+    const wrap = $("#techniqueForecastList");
+    if(wrap) wrap.innerHTML = "";
     return;
   }
 
@@ -3322,10 +3420,7 @@ function renderCommentary(asset, tf, candles, an){
   const rsiComment = r >= 65 ? "RSI aşırı alım bölgesine yakın seyrediyor, momentum güçlü." : r <= 35 ? "RSI aşırı satım bölgesinde dip arayışı sürüyor." : "RSI nötr bantta dengeli alım/satım hacmi sergiliyor.";
   const macdComment = (m && m.histogram > 0) ? "MACD pozitif bölgede yeşil histogram üretiyor." : "MACD negatif bölgede zayıflama gösteriyor.";
 
-  const topConfluence = an.confluences && an.confluences[0]
-    ? ` Ek teyit: ${an.confluences[0].tag}.`
-    : "";
-  descEl.textContent = `${asset.name} (${asset.symbol}) fiyatı $${formatPrice(cur)} seviyesinde, ${emaState} hareket ediyor. ${rsiComment} ${macdComment} Yakın destek $${formatPrice(sup)} ve direnç $${formatPrice(res)} aralığı sıkışma oluşturuyor.${topConfluence}`;
+  descEl.textContent = `${asset.name} (${asset.symbol}) fiyatı $${formatPrice(cur)} seviyesinde, ${emaState} hareket ediyor. ${rsiComment} ${macdComment} Yakın destek $${formatPrice(sup)} ve direnç $${formatPrice(res)} aralığı sıkışma oluşturuyor.`;
 
   // Seçili vade için anlık projeksiyon ve grafikleri güncelle
   generateInstantForecast(state.selectedForecastHorizon || "30m", false);
